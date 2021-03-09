@@ -60,8 +60,6 @@ def task11(dropout=None, generate_gt=None, noise=None):
             print(f"Noise of std dev {std} and mean: {mean}: mAP {mapp} - mIOU {miou}")
 
 def task12():
-    predict_annons = read_annotations(str(Path.joinpath(Path(__file__).parent, "s03_c010-annotation.xml")))
-
     gt_annons = read_annotations(str(Path.joinpath(Path(__file__).parent, "s03_c010-mask_rcnn.txt")))
     mapp, _, _ = mAP(gt_annons, predict_annons)
     print(f"Mask rcnn mAP: {mapp}")
@@ -139,6 +137,14 @@ def task13_4():
     mse_45, error_45, msen_45, pepn_45 = calc_optical_flow(gt_000045_10, pred_000045_10)
     print(msen_45, pepn_45)
 
+    # -- Error -- #
+    plt.figure()
+    plt.imshow(mse_45)
+    plt.title('Error_Flow-45')
+    plt.axis('off')
+    plt.savefig(os.path.join('results/week1/', 'error_45.png'))
+    plt.close()
+
     # -- Histogram -- #
     plt.figure()
     plt.title('Error Histogram-45')
@@ -171,6 +177,14 @@ def task13_4():
     # -- Frame 157 -- #
     mse_157, error_157, msen_157, pepn_157 = calc_optical_flow(gt_000157_10, pred_000157_10)
     print(msen_157, pepn_157)
+
+    # -- Error -- #
+    plt.figure()
+    plt.imshow(mse_157)
+    plt.title('Error_Flow-157')
+    plt.axis('off')
+    plt.savefig(os.path.join('results/week1/', 'error_157.png'))
+    plt.close()
 
     # -- Histogram -- #
     plt.figure()
