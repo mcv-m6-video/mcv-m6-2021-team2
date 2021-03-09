@@ -2,10 +2,9 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import List
 
-from src.frame import Frame
 from src.annotation import Annotation
 
-def read_annotations(file_path : str) -> List[Frame]:
+def read_annotations(file_path : str) -> List[Annotation]:
 
     if not Path(file_path).exists():
         raise FileNotFoundError(f"The file pat provided: {file_path} does not exists.")

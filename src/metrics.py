@@ -1,5 +1,4 @@
 from typing import List
-from src.frame import Frame
 from src.annotation import Annotation
 
 import numpy as np
