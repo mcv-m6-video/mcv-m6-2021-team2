@@ -16,6 +16,8 @@ def mAP(gt_annons: List[Annotation], predict_annons: List[Annotation], N=10):
             gt_frames[frame] = []
         gt_frames[frame].append(gt_annon)
 
+    frames_miou = {}
+
     for n in range(N):
         np.random.shuffle(predict_annons)
 
@@ -25,6 +27,9 @@ def mAP(gt_annons: List[Annotation], predict_annons: List[Annotation], N=10):
         fp = np.zeros(len(predict_annons))
 
         for predict_idx, predict_annon in enumerate(predict_annons):
+            if predict_annon.frame not in frames_miou:
+                frames_miou[predict_annon.frame] = []
+
             IoUs = []
             gt_guids = []
 
@@ -44,13 +49,18 @@ def mAP(gt_annons: List[Annotation], predict_annons: List[Annotation], N=10):
                     fp[predict_idx] = 1
 
                 iou.append(IoUs[idx_max])
+                frames_miou[predict_annon.frame].append(IoUs[idx_max])
             else:
                 iou.append(0)
                 fp[predict_idx] = 1
+                frames_miou[predict_annon.frame].append(0)
 
         ap.append(AP(tp, fp, len(gt_annons)))
 
-    return np.mean(ap), np.mean(iou)
+    for k, v in frames_miou.items():
+        frames_miou[k] = np.mean(v)
+
+    return np.mean(ap), np.mean(iou), frames_miou
 
 def AP(tp,fp,npos):
     """

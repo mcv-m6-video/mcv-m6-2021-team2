@@ -13,6 +13,8 @@ from src.annotation import Annotation
 from src.read_flow_img import read_flow_img
 from src.flow_metrics import calc_optical_flow, magnitude_flow
 from src.plot import plot_arrows
+from tools.plot import generate_frame_mious_plot
+from tools.generate_video import generate_video
 
 def task11(dropout=None, generate_gt=None, noise=None):
     gt_path = Path.joinpath(Path(__file__).parent, "s03_c010-gt.txt")
@@ -21,16 +23,16 @@ def task11(dropout=None, generate_gt=None, noise=None):
     predict_annons = read_annotations(str(gt_path))
 
     # Without any change
-    mapp, miou = mAP(gt_annons, predict_annons)
+    mapp, miou, _ = mAP(gt_annons, predict_annons)
     print(f"Without any change: mAP {mapp} - mIOU {miou}")
 
     # Random Dropout
-    if dropout is not None:
+    for dropout in np.arange(0.0, 0.9, 0.1):
         rgt_annons = copy.deepcopy(gt_annons)
         np.random.shuffle(rgt_annons)
         rgt_annons = rgt_annons[int(len(rgt_annons)*dropout):-1]
 
-        mapp, miou = mAP(rgt_annons, predict_annons)
+        mapp, miou, _ = mAP(rgt_annons, predict_annons)
         print(f"Dropout of {dropout}: mAP {mapp} - mIOU {miou}")
 
     # Generate Gt
@@ -43,32 +45,89 @@ def task11(dropout=None, generate_gt=None, noise=None):
     """
 
     # Apply std
-    if noise is not None:
-        rgt_annons = copy.deepcopy(gt_annons)
+    for mean in np.arange(1.0, 10.0, 0.5):
+        for std in np.arange(1.0, 10.0, 0.5):
+            rgt_annons = copy.deepcopy(gt_annons)
+            np.random.shuffle(rgt_annons)
 
-        for rgt_annon in rgt_annons:
-            rgt_annon.left += np.random.normal(noise[0], noise[1])
-            rgt_annon.top += np.random.normal(noise[0], noise[1])
-            rgt_annon.width += np.random.normal(noise[0], noise[1])
-            rgt_annon.height += np.random.normal(noise[0], noise[1])
+            for rgt_annon in rgt_annons:
+                rgt_annon.left += np.random.normal(mean, std)
+                rgt_annon.top += np.random.normal(mean, std)
+                rgt_annon.width += np.random.normal(mean, std)
+                rgt_annon.height += np.random.normal(mean, std)
 
-        mapp, miou = mAP(rgt_annons, predict_annons)
-        print(f"Dropout of {dropout}: mAP {mapp} - mIOU {miou}")
+            mapp, miou, _ = mAP(rgt_annons, predict_annons)
+            print(f"Noise of std dev {std} and mean: {mean}: mAP {mapp} - mIOU {miou}")
 
 def task12():
     predict_annons = read_annotations(str(Path.joinpath(Path(__file__).parent, "s03_c010-annotation.xml")))
 
     gt_annons = read_annotations(str(Path.joinpath(Path(__file__).parent, "s03_c010-mask_rcnn.txt")))
-    mapp, _ = mAP(gt_annons, predict_annons)
+    mapp, _, _ = mAP(gt_annons, predict_annons)
     print(f"Mask rcnn mAP: {mapp}")
 
     gt_annons = read_annotations(str(Path.joinpath(Path(__file__).parent, "s03_c010-ssd512.txt")))
-    mapp, _ = mAP(gt_annons, predict_annons)
+    mapp, _, _ = mAP(gt_annons, predict_annons)
     print(f"SSD 512 mAP: {mapp}")
 
     gt_annons = read_annotations(str(Path.joinpath(Path(__file__).parent, "s03_c010-yolo3.txt")))
-    mapp, _ = mAP(gt_annons, predict_annons)
+    mapp, _, _ = mAP(gt_annons, predict_annons)
     print(f"Yolo 3 mAP: {mapp}")
+
+def task12_generate_plots():
+    predict_annons = read_annotations(str(Path.joinpath(Path(__file__).parent, "s03_c010-annotation.xml")))
+
+    gt_annons = read_annotations(str(Path.joinpath(Path(__file__).parent, "s03_c010-mask_rcnn.txt")))
+    mapp, _, frames_miou = mAP(gt_annons, predict_annons)
+
+    frames = list(range(0, len(frames_miou)))
+    mious = list(frames_miou.values())
+    generate_frame_mious_plot(frames, mious, "rcnn-plot.png")
+
+    gt_annons = read_annotations(str(Path.joinpath(Path(__file__).parent, "s03_c010-ssd512.txt")))
+    mapp, _, frames_miou = mAP(gt_annons, predict_annons)
+
+    frames = list(range(0, len(frames_miou)))
+    mious = list(frames_miou.values())
+    generate_frame_mious_plot(frames, mious, "ssd-plot.png")
+
+    gt_annons = read_annotations(str(Path.joinpath(Path(__file__).parent, "s03_c010-yolo3.txt")))
+    mapp, _, frames_miou = mAP(gt_annons, predict_annons)
+
+    frames = list(range(0, len(frames_miou)))
+    mious = list(frames_miou.values())
+    generate_frame_mious_plot(frames, mious, "yolo3-plot.png")
+
+def task12_generate_video():
+    predict_annons = read_annotations(str(Path.joinpath(Path(__file__).parent, "s03_c010-annotation.xml")))
+
+    gt_annons = read_annotations(str(Path.joinpath(Path(__file__).parent, "s03_c010-mask_rcnn.txt")))
+    mapp, _, frames_miou = mAP(gt_annons, predict_annons)
+    print(f"Mask rcnn mAP: {mapp}")
+
+    frames = list(range(450, len(frames_miou)))[:150]
+    mious = list(frames_miou.values())[450:600]
+
+    generate_video(str(Path.joinpath(Path(__file__).parent, "vdo.avi")), frames, mious, gt_annons, predict_annons, 'Mask R-CNN', 'rcnn.gif')
+
+    gt_annons = read_annotations(str(Path.joinpath(Path(__file__).parent, "s03_c010-ssd512.txt")))
+    mapp, _, frames_miou = mAP(gt_annons, predict_annons)
+    print(f"SSD 512 mAP: {mapp}")
+
+    frames = list(range(450, len(frames_miou)))[:150]
+    mious = list(frames_miou.values())[450:600]
+
+    generate_video(str(Path.joinpath(Path(__file__).parent, "vdo.avi")), frames, mious, gt_annons, predict_annons, 'SSD 512', 'ssd.gif')
+
+    gt_annons = read_annotations(str(Path.joinpath(Path(__file__).parent, "s03_c010-yolo3.txt")))
+    mapp, _, frames_miou = mAP(gt_annons, predict_annons)
+    print(f"Yolo 3 mAP: {mapp}")
+
+    frames = list(range(450, len(frames_miou)))[:150]
+    mious = list(frames_miou.values())[450:600]
+
+    generate_video(str(Path.joinpath(Path(__file__).parent, "vdo.avi")), frames, mious, gt_annons, predict_annons, 'Yolo 3', 'yolo.gif')
+
 
 def task13_4():
     pred_000045_10 = read_flow_img(str(Path.joinpath(Path(__file__).parent, "pred_000045_10.png")))
@@ -143,6 +202,4 @@ def task13_4():
     plot_arrows(img_157_gray, pred_000157_10, 10, 157, 'PRED')
 
 
-for _ in range(3):
-    task12()
-task13_4()
+task11()
