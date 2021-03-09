@@ -55,20 +55,44 @@ def task11(dropout=None, generate_gt=None, noise=None):
         mapp, miou = mAP(rgt_annons, predict_annons)
         print(f"Dropout of {dropout}: mAP {mapp} - mIOU {miou}")
 
-def task12():
+def task12(iters = 1):
+
     predict_annons = read_annotations(str(Path.joinpath(Path(__file__).parent, "s03_c010-annotation.xml")))
+    rcnn_mapp = 0
+    ssd2_mapp = 0
+    yolo3_mapp = 0
 
-    gt_annons = read_annotations(str(Path.joinpath(Path(__file__).parent, "s03_c010-mask_rcnn.txt")))
-    mapp, _ = mAP(gt_annons, predict_annons)
-    print(f"Mask rcnn mAP: {mapp}")
+    print(f"Getting mAP average for {iters} runs")
+    for i in range(iters):
 
-    gt_annons = read_annotations(str(Path.joinpath(Path(__file__).parent, "s03_c010-ssd512.txt")))
-    mapp, _ = mAP(gt_annons, predict_annons)
-    print(f"SSD 512 mAP: {mapp}")
+        print(f"|_______ Iteration {i+1}")
 
-    gt_annons = read_annotations(str(Path.joinpath(Path(__file__).parent, "s03_c010-yolo3.txt")))
-    mapp, _ = mAP(gt_annons, predict_annons)
-    print(f"Yolo 3 mAP: {mapp}")
+        gt_annons = read_annotations(str(Path.joinpath(Path(__file__).parent, "s03_c010-mask_rcnn.txt")))
+        tmp_rcnn_mapp, _ = mAP(gt_annons, predict_annons)  
+        rcnn_mapp = rcnn_mapp + tmp_rcnn_mapp      
+        print(f"\t|__ Mask rcnn mAP: {tmp_rcnn_mapp:.4f}")
+
+        gt_annons = read_annotations(str(Path.joinpath(Path(__file__).parent, "s03_c010-ssd512.txt")))
+        tmp_ssd2_mapp, _ = mAP(gt_annons, predict_annons)
+        ssd2_mapp = ssd2_mapp + tmp_ssd2_mapp
+        print(f"\t|__ SSD 512 mAP: {tmp_ssd2_mapp:.4f}")
+
+        gt_annons = read_annotations(str(Path.joinpath(Path(__file__).parent, "s03_c010-yolo3.txt")))
+        tmp_yolo3_mapp, _ = mAP(gt_annons, predict_annons)
+        yolo3_mapp = yolo3_mapp + tmp_yolo3_mapp
+        print(f"\t|__ Yolo 3 mAP: {tmp_yolo3_mapp:.4f}")
+
+        avg_rcnn = rcnn_mapp / i+1
+        avg_ssd = ssd2_mapp / i+1
+        avg_yolo3 = yolo3_mapp / i+1
+
+        print(f"\t|__ Current avg mAPs: RCNN: {avg_rcnn:.4f} | SSD 512: {avg_ssd:.4f} | Yolo3: {avg_yolo3:.4f}")
+
+    avg_rcnn = rcnn_mapp / iters
+    avg_ssd = ssd2_mapp / iters
+    avg_yolo3 = yolo3_mapp / iters
+    print("###########################################################################################")
+    print(f"Average mAPs in {iters} iterations: RCNN: {avg_rcnn:.4f} | SSD 512: {avg_ssd:.4f} | Yolo3: {avg_yolo3:.4f}")
 
 def task13_4():
     pred_000045_10 = read_flow_img(str(Path.joinpath(Path(__file__).parent, "pred_000045_10.png")))
@@ -143,6 +167,6 @@ def task13_4():
     plot_arrows(img_157_gray, pred_000157_10, 10, 157, 'PRED')
 
 
-for _ in range(3):
-    task12()
-task13_4()
+# for _ in range(3):
+task12(3)
+# task13_4()
