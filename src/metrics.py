@@ -3,7 +3,7 @@ from src.annotation import Annotation
 
 import numpy as np
 
-def mAP(gt_annons: List[Annotation], predict_annons: List[Annotation], confidence=False, N=10):
+def mAP(gt_annons: List[Annotation], predict_annons: List[Annotation], N=10):
 
     ap = []
     iou = []
@@ -17,8 +17,7 @@ def mAP(gt_annons: List[Annotation], predict_annons: List[Annotation], confidenc
         gt_frames[frame].append(gt_annon)
 
     for n in range(N):
-        if not confidence:
-            np.random.shuffle(predict_annons)
+        np.random.shuffle(predict_annons)
 
         gt_used = []
 
@@ -47,6 +46,7 @@ def mAP(gt_annons: List[Annotation], predict_annons: List[Annotation], confidenc
                 iou.append(IoUs[idx_max])
             else:
                 iou.append(0)
+                fp[predict_idx] = 1
 
         ap.append(AP(tp, fp, len(gt_annons)))
 
