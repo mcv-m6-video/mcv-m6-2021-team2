@@ -13,7 +13,7 @@ from src.annotation import Annotation
 from src.read_flow_img import read_flow_img
 from src.flow_metrics import calc_optical_flow, magnitude_flow
 from src.plot import plot_arrows
-from tools.plot import generate_frame_mious_plot
+from tools.plot import generate_frame_mious_plot, generate_noise_plot
 from tools.generate_video import generate_video
 
 def task11(dropout=None, generate_gt=None, noise=None):
@@ -26,6 +26,8 @@ def task11(dropout=None, generate_gt=None, noise=None):
     mapp, miou, _ = mAP(gt_annons, predict_annons)
     print(f"Without any change: mAP {mapp} - mIOU {miou}")
 
+    mapps = []
+    mious = []
     # Random Dropout
     for dropout in np.arange(0.0, 0.9, 0.1):
         rgt_annons = copy.deepcopy(gt_annons)
@@ -33,20 +35,40 @@ def task11(dropout=None, generate_gt=None, noise=None):
         rgt_annons = rgt_annons[int(len(rgt_annons)*dropout):-1]
 
         mapp, miou, _ = mAP(rgt_annons, predict_annons)
+        mapps.append(mapp)
+        mious.append(miou)
+
         print(f"Dropout of {dropout}: mAP {mapp} - mIOU {miou}")
 
-    # Generate Gt
-    """
-    if generate_gt > 0:
-        rgt_annons = copy.deepcopy(gt_annons)
+    dropouts = np.arange(0.0, 0.9, 0.1)
+    generate_noise_plot(dropouts, mapps, dropouts, mious, 'mAP', 'mIoU', '% of Dropout', 'Result of mAP/mIoU', 'Applying different percentages of dropout.', 'dropout.png')
 
-        mapp, miou = mAP(rgt_annons, predict_annons)
-        print(f"Generate of {generate_gt}: mAP {mapp} - mIOU {miou}")
-    """
+    mapps = []
+    mious = []
+    # Generate Gt
+    for generate in np.arange(0.0, 0.9, 0.1):
+        rgt_annons = copy.deepcopy(gt_annons)
+        np.random.shuffle(rgt_annons)
+
+        extra = rgt_annons[0:int(len(rgt_annons)*generate)]
+        rgt_annons += extra
+        np.random.shuffle(rgt_annons)
+
+        mapp, miou, _ = mAP(rgt_annons, predict_annons)
+        mapps.append(mapp)
+        mious.append(miou)
+
+        print(f"With a generation of {generate}%: mAP {mapp} - mIOU {miou}")
+
+    generates = np.arange(0.0, 0.9, 0.1)
+    generate_noise_plot(generates, mapps, generates, mious, 'mAP', 'mIoU', '% Generate of new GT boxes', 'Result of mAP/mIoU', 'Applying different percentages of generation new Gt bbox.', 'generation.png')
 
     # Apply std
-    for mean in np.arange(1.0, 10.0, 0.5):
-        for std in np.arange(1.0, 10.0, 0.5):
+    for mean in np.arange(0.0, 21.0, 10):
+
+        mapps = []
+        mious = []
+        for std in np.arange(10.0, 100.0, 10.0):
             rgt_annons = copy.deepcopy(gt_annons)
             np.random.shuffle(rgt_annons)
 
@@ -57,7 +79,14 @@ def task11(dropout=None, generate_gt=None, noise=None):
                 rgt_annon.height += np.random.normal(mean, std)
 
             mapp, miou, _ = mAP(rgt_annons, predict_annons)
+            mapps.append(mapp)
+            mious.append(miou)
+
             print(f"Noise of std dev {std} and mean: {mean}: mAP {mapp} - mIOU {miou}")
+
+        stds = np.arange(10.0, 100.0, 10.0)
+        generate_noise_plot(stds, mapps, stds, mious, 'mAP', 'mIoU', 'Std Dev.', 'Result of mAP/mIoU', f'Applying different Std. Dev with MEAN = {mean}', f'noise-mean-{mean}-std-dev.png')
+
 
 def task12():
     gt_annons = read_annotations(str(Path.joinpath(Path(__file__).parent, "s03_c010-mask_rcnn.txt")))
