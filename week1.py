@@ -8,7 +8,6 @@ import copy
 from tools.annotation_reader import read_annotations
 from src.metrics import IoU, mAP
 from src.annotation import Annotation
-from src.frame import Frame
 from src.read_flow_img import read_flow_img
 from src.flow_metrics import calc_optical_flow
 
@@ -53,20 +52,20 @@ def task11(dropout=None, generate_gt=None, noise=None):
         mapp, miou = mAP(rgt_annons, predict_annons)
         print(f"Dropout of {dropout}: mAP {mapp} - mIOU {miou}")
 
-def task12(det):
-    pred_path = Path.joinpath(Path(__file__).parent, "s03_c010-annotation.xml")
-    predict_annons = read_annotations(str(pred_path))
+def task12():
+    predict_annons = read_annotations(str(Path.joinpath(Path(__file__).parent, "s03_c010-annotation.xml")))
 
-    if det == 'mask-rcnn':
-        gt_path = Path.joinpath(Path(__file__).parent, "s03_c010-mask_rcnn.txt")
-    elif det == 'ssd512':
-        gt_path = Path.joinpath(Path(__file__).parent, "s03_c010-ssd512.txt")
-    else:
-        gt_path = Path.joinpath(Path(__file__).parent, "s03_c010-yolo3.txt")
+    gt_annons = read_annotations(str(Path.joinpath(Path(__file__).parent, "s03_c010-mask_rcnn.txt")))
+    mapp, _ = mAP(gt_annons, predict_annons)
+    print(f"Mask rcnn mAP: {mapp}")
 
-    gt_annons = read_annotations(str(gt_path))
+    gt_annons = read_annotations(str(Path.joinpath(Path(__file__).parent, "s03_c010-ssd512.txt")))
+    mapp, _ = mAP(gt_annons, predict_annons)
+    print(f"SSD 512 mAP: {mapp}")
 
-    return mAP(gt_annons, predict_annons)
+    gt_annons = read_annotations(str(Path.joinpath(Path(__file__).parent, "s03_c010-yolo3.txt")))
+    mapp, _ = mAP(gt_annons, predict_annons)
+    print(f"Yolo 3 mAP: {mapp}")
 
 def task13():
     pred_000045_10 = read_flow_img(str(Path.joinpath(Path(__file__).parent, "pred_000045_10.png")))
@@ -76,6 +75,5 @@ def task13():
 
     print(calc_optical_flow(gt_000045_10, pred_000045_10))
 
-#task11()
-#print(task12('mask-rcnn'))
-task13()
+for _ in range(3):
+    task12()
