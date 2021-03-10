@@ -87,6 +87,30 @@ def task11(dropout=None, generate_gt=None, noise=None):
         stds = np.arange(10.0, 100.0, 10.0)
         generate_noise_plot(stds, mapps, stds, mious, 'mAP', 'mIoU', 'Std Dev.', 'Result of mAP/mIoU', f'Applying different Std. Dev with MEAN = {mean}', f'noise-mean-{mean}-std-dev.png')
 
+def task11_video():
+    gt_path = Path.joinpath(Path(__file__).parent, "s03_c010-gt.txt")
+
+    gt_annons = read_annotations(str(gt_path))
+    predict_annons = read_annotations(str(gt_path))
+
+    # Apply std
+    rgt_annons = copy.deepcopy(gt_annons)
+    np.random.shuffle(rgt_annons)
+
+    for rgt_annon in rgt_annons:
+        rgt_annon.left += np.random.normal(0, 60)
+        rgt_annon.top += np.random.normal(0, 60)
+        #rgt_annon.width += np.random.normal(mean, std)
+        #rgt_annon.height += np.random.normal(mean, std)
+
+    mapp, miou, frames_miou = mAP(predict_annons, rgt_annons)
+
+    print(f"Noise of std dev {60} and mean: {0}: mAP {mapp} - mIOU {miou}")
+
+    frames = list(range(450, len(frames_miou)))[:150]
+    mious = list(frames_miou.values())[450:600]
+
+    generate_video(str(Path.joinpath(Path(__file__).parent, "vdo.avi")), frames, mious, predict_annons, rgt_annons, f'Applying noise to GT Bbox (mean = 0, std dev = 60)', f'noise-mean-{0}-stddev-{60}.gif')
 
 def task12():
     gt_annons = read_annotations(str(Path.joinpath(Path(__file__).parent, "s03_c010-mask_rcnn.txt")))
@@ -275,4 +299,4 @@ def task13_4():
     plot_arrows(img_157_gray, pred_000157_10, 10, 157, 'PRED')
 
 
-task12_generate_plots()
+task11_video()
