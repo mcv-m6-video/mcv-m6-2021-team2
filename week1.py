@@ -66,7 +66,7 @@ def task11(dropout=None, generate_gt=None, noise=None):
     generate_noise_plot(generates, mapps, generates, mious, 'mAP', 'mIoU', '% Generate of new GT boxes', 'Result of mAP/mIoU', 'Applying different percentages of generation new Gt bbox.', f'{OUTPUT_FOLDER}/generation.png')
 
     # Apply std
-    for mean in np.arange(0.0, 161.0, 5):
+    for mean in np.arange(20.0, 221.0, 100):
 
         mapps = []
         mious = []
@@ -93,7 +93,7 @@ def task11(dropout=None, generate_gt=None, noise=None):
         generate_noise_plot(stds, mapps, stds, mious, 'mAP', 'mIoU', 'Std Dev.', 'Result of mAP/mIoU', f'Applying different Std. Dev with MEAN = {mean} on size', f'{OUTPUT_FOLDER}/size-noise/noise-mean-{mean}-std-dev-size.png')
         
     # Apply std
-    for mean in np.arange(0.0, 161.0, 5):
+    for mean in np.arange(20.0, 221.0, 100):
 
         mapps = []
         mious = []
@@ -129,8 +129,6 @@ def task11_video():
     for rgt_annon in rgt_annons:
         rgt_annon.left += np.random.normal(0, 60)
         rgt_annon.top += np.random.normal(0, 60)
-        #rgt_annon.width += np.random.normal(mean, std)
-        #rgt_annon.height += np.random.normal(mean, std)
 
     mapp, miou, frames_miou = mAP(predict_annons, rgt_annons)
 

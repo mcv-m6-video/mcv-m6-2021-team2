@@ -36,6 +36,7 @@ def generate_noise_plot(x, y, xx, yy, label1, label2, xlabel, ylabel, title, out
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
     plt.title(title)
+    plt.ylim([0, 1])
     plt.legend()
     plt.savefig(output_path)
     plt.close()
