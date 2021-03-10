@@ -16,6 +16,8 @@ from src.plot import plot_arrows
 from tools.plot import generate_frame_mious_plot, generate_noise_plot
 from tools.generate_video import generate_video
 
+OUTPUT_FOLDER = "outputs"
+
 def task11(dropout=None, generate_gt=None, noise=None):
     gt_path = Path.joinpath(Path(__file__).parent, "s03_c010-gt.txt")
 
@@ -23,7 +25,7 @@ def task11(dropout=None, generate_gt=None, noise=None):
     predict_annons = read_annotations(str(gt_path))
 
     # Without any change
-    mapp, miou, _ = mAP(gt_annons, predict_annons)
+    mapp, miou, _ = mAP(predict_annons, gt_annons)
     print(f"Without any change: mAP {mapp} - mIOU {miou}")
 
     mapps = []
@@ -34,14 +36,14 @@ def task11(dropout=None, generate_gt=None, noise=None):
         np.random.shuffle(rgt_annons)
         rgt_annons = rgt_annons[int(len(rgt_annons)*dropout):-1]
 
-        mapp, miou, _ = mAP(rgt_annons, predict_annons)
+        mapp, miou, _ = mAP(gt_annons, rgt_annons)
         mapps.append(mapp)
         mious.append(miou)
 
         print(f"Dropout of {dropout}: mAP {mapp} - mIOU {miou}")
 
     dropouts = np.arange(0.0, 0.9, 0.1)
-    generate_noise_plot(dropouts, mapps, dropouts, mious, 'mAP', 'mIoU', '% of Dropout', 'Result of mAP/mIoU', 'Applying different percentages of dropout.', 'dropout.png')
+    generate_noise_plot(dropouts, mapps, dropouts, mious, 'mAP', 'mIoU', '% of Dropout', 'Result of mAP/mIoU', 'Applying different percentages of dropout.', f'{OUTPUT_FOLDER}/dropout.png')
 
     mapps = []
     mious = []
@@ -54,17 +56,64 @@ def task11(dropout=None, generate_gt=None, noise=None):
         rgt_annons += extra
         np.random.shuffle(rgt_annons)
 
-        mapp, miou, _ = mAP(rgt_annons, predict_annons)
+        mapp, miou, _ = mAP(gt_annons, rgt_annons)
         mapps.append(mapp)
         mious.append(miou)
 
         print(f"With a generation of {generate}%: mAP {mapp} - mIOU {miou}")
 
     generates = np.arange(0.0, 0.9, 0.1)
-    generate_noise_plot(generates, mapps, generates, mious, 'mAP', 'mIoU', '% Generate of new GT boxes', 'Result of mAP/mIoU', 'Applying different percentages of generation new Gt bbox.', 'generation.png')
+    generate_noise_plot(generates, mapps, generates, mious, 'mAP', 'mIoU', '% Generate of new GT boxes', 'Result of mAP/mIoU', 'Applying different percentages of generation new Gt bbox.', f'{OUTPUT_FOLDER}/generation.png')
 
     # Apply std
-    for mean in np.arange(0.0, 21.0, 10):
+    for mean in np.arange(0.0, 161.0, 5):
+
+        mapps = []
+        mious = []
+        for std in np.arange(10.0, 100.0, 10.0):
+            rgt_annons = copy.deepcopy(gt_annons)
+            np.random.shuffle(rgt_annons)
+
+            random1list = []
+            random2list = []
+            i=0
+
+            for rgt_annon in rgt_annons:
+                i= i+1
+                random1 = np.random.normal(mean, 2*std) - mean
+                random1list.append(random1)
+                rgt_annon.width += (random1) 
+                random2 = np.random.normal(mean, 2*std) - mean
+                rgt_annon.height += (random2)
+                random2list.append(random2)
+
+            ##############            
+            x = np.arange(0.0, i, 1.0)
+            plt.plot(x, random1list, label="random1")
+            plt.plot(x, random2list, label="random2")
+            plt.xlabel("random1")
+            plt.ylabel("random2")
+            plt.title("title")
+            plt.legend()
+            plt.savefig("randoms.png")
+            plt.close()
+
+            ##############
+
+
+
+
+            mapp, miou, _ = mAP(gt_annons, rgt_annons)
+            mapps.append(mapp)
+            mious.append(miou)
+
+            print(f"Noise of std dev {std} and mean: {mean}: mAP {mapp} - mIOU {miou}")
+
+        stds = np.arange(10.0, 100.0, 10.0)
+        generate_noise_plot(stds, mapps, stds, mious, 'mAP', 'mIoU', 'Std Dev.', 'Result of mAP/mIoU', f'Applying different Std. Dev with MEAN = {mean} on size', f'{OUTPUT_FOLDER}/size-noise/noise-mean-{mean}-std-dev-size.png')
+        
+    # Apply std
+    for mean in np.arange(0.0, 161.0, 5):
 
         mapps = []
         mious = []
@@ -73,19 +122,17 @@ def task11(dropout=None, generate_gt=None, noise=None):
             np.random.shuffle(rgt_annons)
 
             for rgt_annon in rgt_annons:
-                rgt_annon.left += np.random.normal(mean, std)
-                rgt_annon.top += np.random.normal(mean, std)
-                rgt_annon.width += np.random.normal(mean, std)
-                rgt_annon.height += np.random.normal(mean, std)
+                rgt_annon.left += (np.random.normal(mean, 2*std) - mean) 
+                rgt_annon.top += (np.random.normal(mean, 2*std) - mean) 
 
-            mapp, miou, _ = mAP(rgt_annons, predict_annons)
+            mapp, miou, _ = mAP(gt_annons, rgt_annons)
             mapps.append(mapp)
             mious.append(miou)
 
             print(f"Noise of std dev {std} and mean: {mean}: mAP {mapp} - mIOU {miou}")
 
         stds = np.arange(10.0, 100.0, 10.0)
-        generate_noise_plot(stds, mapps, stds, mious, 'mAP', 'mIoU', 'Std Dev.', 'Result of mAP/mIoU', f'Applying different Std. Dev with MEAN = {mean}', f'noise-mean-{mean}-std-dev.png')
+        generate_noise_plot(stds, mapps, stds, mious, 'mAP', 'mIoU', 'Std Dev.', 'Result of mAP/mIoU', f'Applying different Std. Dev with MEAN = {mean} on location', f'{OUTPUT_FOLDER}/location-noise/noise-mean-{mean}-std-dev-location.png')
 
 
 def task12():
@@ -275,4 +322,4 @@ def task13_4():
     plot_arrows(img_157_gray, pred_000157_10, 10, 157, 'PRED')
 
 
-task12_generate_plots()
+task11()
