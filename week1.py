@@ -74,31 +74,11 @@ def task11(dropout=None, generate_gt=None, noise=None):
             rgt_annons = copy.deepcopy(gt_annons)
             np.random.shuffle(rgt_annons)
 
-            random1list = []
-            random2list = []
-            i=0
-
             for rgt_annon in rgt_annons:
-                i= i+1
                 random1 = np.random.normal(mean, 2*std) - mean
-                random1list.append(random1)
                 rgt_annon.width += (random1) 
                 random2 = np.random.normal(mean, 2*std) - mean
                 rgt_annon.height += (random2)
-                random2list.append(random2)
-
-            ##############            
-            x = np.arange(0.0, i, 1.0)
-            plt.plot(x, random1list, label="random1")
-            plt.plot(x, random2list, label="random2")
-            plt.xlabel("random1")
-            plt.ylabel("random2")
-            plt.title("title")
-            plt.legend()
-            plt.savefig("randoms.png")
-            plt.close()
-
-            ##############
 
 
 
@@ -122,8 +102,10 @@ def task11(dropout=None, generate_gt=None, noise=None):
             np.random.shuffle(rgt_annons)
 
             for rgt_annon in rgt_annons:
-                rgt_annon.left += (np.random.normal(mean, 2*std) - mean) 
-                rgt_annon.top += (np.random.normal(mean, 2*std) - mean) 
+                random1=np.random.normal(mean, 2*std) - mean
+                rgt_annon.left += (random1) 
+                random2= np.random.normal(mean, 2*std) - mean
+                rgt_annon.top += (random2) 
 
             mapp, miou, _ = mAP(gt_annons, rgt_annons)
             mapps.append(mapp)
@@ -133,6 +115,31 @@ def task11(dropout=None, generate_gt=None, noise=None):
 
         stds = np.arange(10.0, 100.0, 10.0)
         generate_noise_plot(stds, mapps, stds, mious, 'mAP', 'mIoU', 'Std Dev.', 'Result of mAP/mIoU', f'Applying different Std. Dev with MEAN = {mean} on location', f'{OUTPUT_FOLDER}/location-noise/noise-mean-{mean}-std-dev-location.png')
+
+def task11_video():
+    gt_path = Path.joinpath(Path(__file__).parent, "s03_c010-gt.txt")
+
+    gt_annons = read_annotations(str(gt_path))
+    predict_annons = read_annotations(str(gt_path))
+
+    # Apply std
+    rgt_annons = copy.deepcopy(gt_annons)
+    np.random.shuffle(rgt_annons)
+
+    for rgt_annon in rgt_annons:
+        rgt_annon.left += np.random.normal(0, 60)
+        rgt_annon.top += np.random.normal(0, 60)
+        #rgt_annon.width += np.random.normal(mean, std)
+        #rgt_annon.height += np.random.normal(mean, std)
+
+    mapp, miou, frames_miou = mAP(predict_annons, rgt_annons)
+
+    print(f"Noise of std dev {60} and mean: {0}: mAP {mapp} - mIOU {miou}")
+
+    frames = list(range(450, len(frames_miou)))[:150]
+    mious = list(frames_miou.values())[450:600]
+
+    generate_video(str(Path.joinpath(Path(__file__).parent, "vdo.avi")), frames, mious, predict_annons, rgt_annons, f'Applying noise to GT Bbox (mean = 0, std dev = 60)', f'noise-mean-{0}-stddev-{60}.gif')
 
 
 def task12():
