@@ -24,11 +24,10 @@ def compute_pepn(err: np.ndarray, n_pixels: int, th: int) -> float:
     return (np.sum(err > th) / n_pixels) * 100
 
 
-def magnitude_flow(flow_image, dilate=True):
+def compute_magnitude(flow_image, dilate=True):
     if len(flow_image.shape) > 2:
         magnitude, angle = cv2.cartToPolar(flow_image[:, :, 0], flow_image[:, :, 1])
         flow_image = magnitude
-
     if dilate:
         kernel = np.ones((3, 3), np.uint8)
         flow_image = cv2.dilate(flow_image, kernel, iterations=1)

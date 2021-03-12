@@ -5,6 +5,7 @@ import cv2
 import numpy as np
 
 import matplotlib.pyplot as plt
+import matplotlib.animation as animation
 from IPython.display import display
 from PIL import Image, ImageDraw
 from pathlib import Path
@@ -25,6 +26,16 @@ def plot_img(image, size=(10, 10), cmap=None, title='', save_root=None):
     plt.imshow(image, cmap=cmap)
     plt.title(title)
     plt.axis('off')
+    plt.savefig(Path(f'{save_root}/{title.lower()}.png'))
+    plt.show()
+    plt.close()
+
+def plot_roc(values, plot_range, xlabel, ylabel, title='', save_root=None):
+    plt.plot(plot_range, values)
+    plt.xticks(plot_range)
+    plt.title(title)
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
     plt.savefig(Path(f'{save_root}/{title.lower()}.png'))
     plt.show()
     plt.close()
@@ -62,54 +73,35 @@ def plot_optical_flow(gray_image, flow_image, sampling_step=10, size=(10, 10), t
     plt.show()
     plt.close()
 
+def generate_video(video_path, frames, frame_ious, gt_bb, dd_bb, title='', save_root=None, size=(10,5)):
+    cap = cv2.VideoCapture(video_path)
+    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
 
-def generate_frame_mious_plot(frames, mious, output_path):
-    fig, ax = plt.subplots()
-    ax.plot(frames, mious)
+    fig, ax = plt.subplots(2, 1, figsize=size)
+    image = ax[0].imshow(np.zeros((height, width)))
+    line, = ax[1].plot(frames, frame_ious)
+    artists = [image, line]
 
-    ax.set(xlabel='frames', ylabel='mIoU', title='mIoU x Frame')
-    fig.savefig(output_path)
+    def update(i):
+        cap.set(cv2.CAP_PROP_POS_FRAMES, frames[i])
+        ret, img = cap.read()
+        for bb in gt_bb[frames[i]]:
+            cv2.rectangle(img, (int(bb.xtl), int(bb.ytl)), (int(bb.xbr), int(bb.ybr)), (0, 255, 0), 4)
+        for bb in dd_bb[frames[i]]:
+            cv2.rectangle(img, (int(bb.xtl), int(bb.ytl)), (int(bb.xbr), int(bb.ybr)), (0, 0, 255), 4)
+        artists[0].set_data(img[:, :, ::-1])
+        artists[1].set_data(frames[:i + 1], frame_ious[:i + 1])
+        return artists
 
-    zeroDatapoint = 1
-    minDatapoint = 1
-    targetframe = 0
-    targetZeroFrame = 0
+    ani = animation.FuncAnimation(fig, update, len(frames), interval=2, blit=True)
 
-    for datapoint, frame in zip(mious, frames):
-        if datapoint < minDatapoint:
-            if datapoint != 0:
-                zeroDatapoint = datapoint
-                targetZeroFrame = frame
-            else:
-                minDatapoint = datapoint
-                targetframe = frame
-    print(f'Generated plot into {output_path}')
-    print(f"\nMin miou: {minDatapoint} at frame: {targetframe}")
-    print(f"Zero miou: {zeroDatapoint} at frame: {targetZeroFrame}")
-    print(f"Standard deviation: {statistics.stdev(mious)}")
-    print(f"Mean: {statistics.mean(mious)}")
-    print("_______________________________________________________")
-
-def generate_noise_plot(x, y, xx, yy, label1, label2, xlabel, ylabel, title, output_path):
-    plt.plot(x, y, label=label1)
-    plt.plot(xx, yy, label=label2)
-    plt.xlabel(xlabel)
-    plt.ylabel(ylabel)
-    plt.title(title)
-    plt.ylim([0, 1])
-    plt.legend()
-    plt.savefig(output_path)
+    ax[0].set_xticks([])
+    ax[0].set_yticks([])
+    ax[1].set_ylim(0, 1)
+    ax[1].set_xlabel('#frame')
+    ax[1].set_ylabel('mean IoU')
+    fig.suptitle(title)
+    ani.save(Path(f'{save_root}/{title.lower()}.gif', writer='imagemagick'))
+    plt.show()
     plt.close()
-    print(f'Generating plot into {output_path}')
-
-    
-def generate_noise_plot_gif(x, y, xx, yy, label1, label2, xlabel, ylabel, title, output_path):
-    plt.plot(x, y, label=label1)
-    plt.plot(xx, yy, label=label2)
-    plt.xlabel(xlabel)
-    plt.ylabel(ylabel)
-    plt.title(title)
-    plt.legend()
-    plt.savefig(output_path)
-    plt.close()
-    print(f'Generating plot into {output_path}')

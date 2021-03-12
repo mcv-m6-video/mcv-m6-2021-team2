@@ -31,4 +31,4 @@ class BoundingBox():
         return (int((self.xtl + self.xbr) / 2), int((self.ybr + self.ytl) / 2))
 
     def __repr__(self):
-        return f'BoundingBox:: frame:{self.frame}, instance_id:{self.instance_id}, label: {self.label}'
+        return f'BoundingBox:: frame:{self.frame}, instance_id:{self.instance_id}, label: {self.label}, confidence: {self.confidence}'
