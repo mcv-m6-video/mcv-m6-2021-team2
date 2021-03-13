@@ -8,8 +8,8 @@ class Annotation:
     top: float
     width: float
     height: float
-    name: str
-    prediction: float = None
+    label: str
+    score: float = None
     guid: str = None
 
     def __post_init__(self):

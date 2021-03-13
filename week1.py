@@ -7,15 +7,18 @@ import copy
 import os
 import matplotlib.pyplot as plt
 
-from tools.annotation_reader import read_annotations
-from src.metrics import IoU, mAP
-from src.annotation import Annotation
-from src.read_flow_img import read_flow_img
-from src.flow_metrics import calc_optical_flow, magnitude_flow
-from src.plot import plot_arrows
-from tools.plot import generate_frame_mious_plot, generate_noise_plot
-from tools.generate_video import generate_video
+from src.metrics.map import mAP
+from src.readers.ai_city_reader import read_txt, read_xml
 
+gt = read_xml(str(Path.joinpath(Path(__file__).parent, "./data/week1/s03_c010-annotation.xml")))
+pred = read_txt(str(Path.joinpath(Path(__file__).parent, "./data/week1/s03_c010-mask_rcnn.txt")))
+print(mAP(pred, gt, ['car'], True))
+pred = read_txt(str(Path.joinpath(Path(__file__).parent, "./data/week1/s03_c010-ssd512.txt")))
+print(mAP(pred, gt, ['car'], True))
+pred = read_txt(str(Path.joinpath(Path(__file__).parent, "./data/week1/s03_c010-yolo3.txt")))
+print(mAP(pred, gt, ['car'], True))
+
+"""
 OUTPUT_FOLDER = "outputs"
 
 def task11(dropout=None, generate_gt=None, noise=None):
@@ -76,7 +79,7 @@ def task11(dropout=None, generate_gt=None, noise=None):
 
             for rgt_annon in rgt_annons:
                 random1 = np.random.normal(mean, 2*std) - mean
-                rgt_annon.width += (random1) 
+                rgt_annon.width += (random1)
                 random2 = np.random.normal(mean, 2*std) - mean
                 rgt_annon.height += (random2)
 
@@ -91,7 +94,7 @@ def task11(dropout=None, generate_gt=None, noise=None):
 
         stds = np.arange(10.0, 100.0, 10.0)
         generate_noise_plot(stds, mapps, stds, mious, 'mAP', 'mIoU', 'Std Dev.', 'Result of mAP/mIoU', f'Applying different Std. Dev with MEAN = {mean} on size', f'{OUTPUT_FOLDER}/size-noise/noise-mean-{mean}-std-dev-size.png')
-        
+
     # Apply std
     for mean in np.arange(20.0, 221.0, 100):
 
@@ -103,9 +106,9 @@ def task11(dropout=None, generate_gt=None, noise=None):
 
             for rgt_annon in rgt_annons:
                 random1=np.random.normal(mean, 2*std) - mean
-                rgt_annon.left += (random1) 
+                rgt_annon.left += (random1)
                 random2= np.random.normal(mean, 2*std) - mean
-                rgt_annon.top += (random2) 
+                rgt_annon.top += (random2)
 
             mapp, miou, _ = mAP(gt_annons, rgt_annons)
             mapps.append(mapp)
@@ -328,3 +331,4 @@ def task13_4():
 
 
 task11()
+"""
