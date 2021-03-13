@@ -33,6 +33,7 @@ class AnnotationReader():
             label = track['@label']
             boxes = track['box']
             for box in boxes:
+                parked = box['attribute']['#text'].lower() == 'true' if label == 'car' else None
                 annotations.append(BoundingBox(
                     frame=int(box['@frame']),
                     instance_id=int(instance_id),
@@ -41,7 +42,8 @@ class AnnotationReader():
                     ytl=float(box['@ytl']),
                     xbr=float(box['@xbr']),
                     ybr=float(box['@ybr']),
-                    score=None
+                    score=None,
+                    parked=parked
                 ))
 
         return annotations
@@ -67,7 +69,7 @@ class AnnotationReader():
 
         return annotations
 
-    def get_bounding_boxes(self, classes=None, group_by='frame'):
+    def get_bounding_boxes(self, classes=None, group_by='frame', ignore_parked=False):
         """ Returns: bounding_boxes: {frame: [BoundingBox,...]} if group_by='frame' """
         if classes is None:
             classes = self.classes
@@ -75,6 +77,8 @@ class AnnotationReader():
         bounding_boxes = []
         for bb in self.annotations:
             if bb.label in classes:  # filter by specified class
+                if ignore_parked and bb.parked:
+                    continue
                 bounding_boxes.append(bb)
 
         if group_by:
