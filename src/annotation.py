@@ -9,11 +9,7 @@ class Annotation:
     width: float
     height: float
     label: str
-    score: float = None
-    guid: str = None
-
-    def __post_init__(self):
-        self.guid = str(uuid4())
+    score: float
 
     def get_bbox(self):
         return [self.left, self.top, self.width, self.height]

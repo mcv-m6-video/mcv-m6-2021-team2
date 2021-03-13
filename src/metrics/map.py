@@ -1,11 +1,11 @@
 import numpy as np
-from typing import List, Tuple
+from typing import Dict, Tuple, List
 
 from src.annotation import Annotation
 from src.metrics.ap import AP
 
-def mAP(pred_annons: List[Annotation],
-        gt_annons: List[Annotation],
+def mAP(pred_annons: Dict[int, Annotation],
+        gt_annons: Dict[int, Annotation],
         classes: List[str],
         score_available: bool = False,
         N: int = 10,
@@ -16,8 +16,8 @@ def mAP(pred_annons: List[Annotation],
     aps = []
 
     for k in classes:
-        class_k_pred_annons = [annon for annon in pred_annons if annon.label == k]
-        class_k_gt_annons = [annon for annon in gt_annons if annon.label == k]
+        class_k_pred_annons = {frame: [annon for annon in annons if annon.label == k] for frame, annons in pred_annons.items()}
+        class_k_gt_annons = {frame: [annon for annon in annons if annon.label == k] for frame, annons in gt_annons.items()}
 
         ap, precision, recall = AP(class_k_pred_annons, class_k_gt_annons, score_available, N, th)
 

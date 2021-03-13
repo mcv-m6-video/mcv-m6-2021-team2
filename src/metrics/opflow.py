@@ -1,28 +1,34 @@
 import numpy as np
 import cv2
 
-def calc_optical_flow(gt: np.array, pred: np.array):
-    discard = gt[:, :, -1] != 0
 
-    ch0 = gt[:, :, 0] - pred[:, :, 0]
-    ch1 = gt[:, :, 1] - pred[:, :, 1]
+def compute_msen(flow_gt: np.ndarray, flow_pred: np.ndarray, th: int = 3):
+    """Mean Square Error in Non-occluded areas"""
 
-    mse = np.sqrt(ch0**2 + ch1**2)
-    error = mse[discard]
+    # compute mse, filtering discarded vectors
+    u_diff = flow_gt[:, :, 0] - flow_pred[:, :, 0]
+    v_diff = flow_gt[:, :, 1] - flow_pred[:, :, 1]
+    squared_error = np.sqrt(u_diff**2 + v_diff**2)
 
-    msen = np.mean(error)
-    pepn = np.sum(error > 3) / len(error)
+    # discard vectors which from occluded areas (occluded = 0)
+    non_occluded_idx = flow_gt[:, :, 2] != 0
+    err_non_occ = squared_error[non_occluded_idx]
 
-    return mse, error, msen, pepn * 100
+    msen = np.mean(err_non_occ)
+
+    return squared_error, err_non_occ, msen
 
 
-def magnitude_flow(flow_image, dilate=True):
+def compute_pepn(err: np.ndarray, n_pixels: int, th: int) -> float:
+    """Percentage of Erroneous Pixels in Non-occluded areas"""
+    return (np.sum(err > th) / n_pixels) * 100
+
+
+def compute_magnitude(flow_image, dilate=True):
     if len(flow_image.shape) > 2:
         magnitude, angle = cv2.cartToPolar(flow_image[:, :, 0], flow_image[:, :, 1])
         flow_image = magnitude
-
     if dilate:
         kernel = np.ones((3, 3), np.uint8)
         flow_image = cv2.dilate(flow_image, kernel, iterations=1)
-    
     return flow_image
