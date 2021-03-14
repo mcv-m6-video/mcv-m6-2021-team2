@@ -3,6 +3,7 @@ import statistics
 import random
 import cv2
 import numpy as np
+import imageio
 
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
@@ -105,3 +106,7 @@ def generate_video(video_path, frames, frame_ious, gt_bb, dd_bb, title='', save_
     ani.save(Path(f'{save_root}/{title.lower()}.gif', writer='imagemagick'))
     plt.show()
     plt.close()
+
+def generate_video_from_frames(output_path: str, frames: List[np.array]) -> NoReturn:
+    frames = frames.astype(np.uint8)
+    imageio.mimsave(output_path, frames)
