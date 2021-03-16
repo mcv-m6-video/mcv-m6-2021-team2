@@ -49,8 +49,8 @@ def generate_video(video_path: str,
 
         artists[0].set_data(img[:, :, ::-1])
 
-        if frame_miou is None:
-            artists[1].set_data(frames[:i + 1], mious[:i + 1])
+        if frame_miou:
+            artists[1].set_data(frames_index[:i + 1], frame_miou[:i + 1])
 
         return artists
 

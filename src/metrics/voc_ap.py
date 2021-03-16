@@ -1,4 +1,4 @@
-from typing import Tuple, List
+from typing import Tuple, List, Dict
 import numpy as np
 
 from src.annotation import Annotation
@@ -6,7 +6,7 @@ from src.metrics.iou import IoU
 
 def voc_ap(pred_annons: List[Annotation],
            gt_annons: List[Annotation],
-           th: float = 0.5) -> Tuple[float, float, float, List[Tuple[int, float]]]:
+           th: float = 0.5) -> Tuple[float, float, float, Dict[int, float]]:
 
     gt_frames = {}
     for annon in gt_annons:

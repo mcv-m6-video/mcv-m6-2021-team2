@@ -68,14 +68,24 @@ def task1_2():
         example_path = str(Path.joinpath(Path(__file__).parent, './data/s03_c010-ssd512.txt'))
         example_annotations = read_txt(example_path)
 
-        print('SSD 512: ',mAP(example_annotations, gt_annotations, ['car'], True))
-        print('Segmentation: ', mAP(annotations, gt_annotations, ['car'], False))
+        print('SSD 512: ',mAP(example_annotations, gt_annotations, ['car'], True)[0])
+
+        mapp, _, _, mious_per_class = mAP(annotations, gt_annotations, ['car'], False)
+        print('Segmentation: ', mapp)
 
         frames_idx = set()
         for annon in annotations:
             frames_idx.add(annon.frame)
 
-        #generate_video(video_path, list(frames_idx), gt_annotations, annotations, 'test', 'example.gif')
+        generate_video(video_path, list(frames_idx), gt_annotations, annotations, 'test', 'example.gif')
+
+        mious_per_frame = []
+        for frame_idx in list(frames_idx):
+            miou = mious_per_class['car'][frame_idx]
+            mious_per_frame.append(miou)
+
+
+        generate_video(video_path, list(frames_idx), gt_annotations, annotations, 'test', 'example2.gif', mious_per_frame)
 
 
 task1_2()
