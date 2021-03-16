@@ -1,58 +1,19 @@
-import numpy as np
+from src.annotation import Annotation
 
-def voc_iou(gt, bb):
-    """
-    Compute IoU between groundtruth bounding box = gt
-    and detected bounding box = bb
-    """
-    # intersection
-    ixmin = np.maximum(gt[:, 0], bb[0])
-    iymin = np.maximum(gt[:, 1], bb[1])
-    ixmax = np.minimum(gt[:, 2], bb[2])
-    iymax = np.minimum(gt[:, 3], bb[3])
-    iw = np.maximum(ixmax - ixmin + 1.0, 0.0)
-    ih = np.maximum(iymax - iymin + 1.0, 0.0)
-    inters = iw * ih
+def IoU(annotation_a: Annotation, annotation_b: Annotation) -> float:
+    bbox_a = annotation_a.get_bbox()
+    bbox_b = annotation_b.get_bbox()
 
-    # union
-    uni = ((bb[2] - bb[0] + 1.0) * (bb[3] - bb[1] + 1.0)
-          + (gt[:, 2] - gt[:, 0] + 1.0) * (gt[:, 3] - gt[:, 1] + 1.0)
-          - inters)
-    overlaps = inters/uni
-    return overlaps
+    xA = max(bbox_a[0], bbox_b[0])
+    yA = max(bbox_a[1], bbox_b[1])
+    xB = min(bbox_a[2], bbox_b[2])
+    yB = min(bbox_a[3], bbox_b[3])
 
-def mean_iou(det, gt, sort=False):
-    '''
-    det: detections of one frame
-    gt: annotations of one frame
-    sort: False if we use modified GT,
-          True if we have a confidence value for the detection
-    '''
-    if sort:
-        BB = sort_by_confidence(det)
-    else:
-        BB = np.array([x.bbox for x in det]).reshape(-1, 4)
+    interArea = max(0, xB - xA + 1) * max(0, yB - yA + 1)
 
-    BBGT = np.array([anot.bbox for anot in gt])
+    boxAArea = (bbox_a[2] - bbox_a[0] + 1) * (bbox_a[3] - bbox_a[1] + 1)
+    boxBArea = (bbox_b[2] - bbox_b[0] + 1) * (bbox_b[3] - bbox_b[1] + 1)
 
-    nd = len(BB)
-    mean_iou = []
-    for d in range(nd):
-        bb = BB[d, :].astype(float)
+    iou = interArea / float(boxAArea + boxBArea - interArea)
 
-        if BBGT.size > 0:
-            # compute overlaps
-            overlaps = voc_iou(BBGT, bb)
-            ovmax = np.max(overlaps)
-            mean_iou.append(ovmax)
-
-    return np.mean(mean_iou)
-
-
-def sort_by_confidence(det):
-    BB = np.array([x.bbox for x in det]).reshape(-1, 4)
-    confidence = np.array([float(x.confidence) for x in det])
-    sorted_ind = np.argsort(-confidence)
-    BB = BB[sorted_ind, :]
-
-    return BB
+    return iou
