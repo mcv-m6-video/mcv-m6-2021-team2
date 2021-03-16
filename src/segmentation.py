@@ -53,11 +53,8 @@ def remove_noise_on_segmented_frames(frames: List[Tuple[int, np.array]],
                                      kernel: np.array) -> List[Tuple[int, np.array]]:
 
     for i, (frame_idx, frame) in enumerate(frames):
-        # To close little holes in the masks
-        mask = cv2.morphologyEx(frame, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3)))
-        # To remove noise around the masks
-        mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (9, 9)))
-        frames[i] = (frame_idx, mask)
+        frames[i] = (frame_idx, cv2.morphologyEx(frame, cv2.MORPH_OPEN, kernel))
+        frames[i] = (frame_idx, cv2.morphologyEx(frame, cv2.MORPH_CLOSE, kernel))
 
     return frames
 

@@ -24,6 +24,7 @@ def task_2():
 	plot_img(background, cmap='gray', title='model_mean_background', save_root=RESULTS)
 	plot_img(variance, cmap='afmhot', title='var_model_background', save_root=RESULTS)
 
+	
 
 if __name__ == "__main__":
     task_2()

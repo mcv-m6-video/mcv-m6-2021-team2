@@ -33,50 +33,39 @@ def task1_1():
         generate_video_from_frames(f'./results/week2/video_alpha_{alpha}.gif', 0.6, segmented_frames)
 
 def task1_2():
+    gt_path = str(Path.joinpath(Path(__file__).parent, './data/s03_c010-annotation.xml'))
+    gt_annotations = read_xml(gt_path, include_parked=True)
+
+    # Compute the mean of car size
+
     background, variance = generate_model(video_path, percentatge_frame_to_use)
+    alphas = [2.0, 2.5, 3.0, 3,5, 4.0, 4.5, 5.0, 5.0, 5.5, 6.0]
+    kernels = [(5,5), (6,6), (2,2), (4,4), (7,7), (1,1), (3,3)]
+    regions_to_detect = [(100,100), (150, 150), (200, 150), (400, 300), (300 ,300), (500, 200)]
+    include_parked_cars = [True, False]
 
-    for alpha in [2.0, 3.0, 4.0, 5.0]:
-        segmented_frames = single_gaussian_segmentation(background, variance, frames[:100], alpha)
+    for n in range(0, 10):
+        alpha = alphas[randint(0, len(alphas)-1)]
+        kernel_dim = kernels[randint(0, len(kernels)-1)]
+        region_to_detect = regions_to_detect[randint(0, len(regions_to_detect)-1)]
+        include_parked = include_parked_cars[randint(0, 1)]
 
-        #cv2.imwrite('./results/week2/example_before_roi.png', segmented_frames[-1][1])
+        print(f'Run {n}/10: alpha {alpha} - kernel {kernel_dim} - region to detect {region_to_detect} - include parked {include_parked}')
+
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, kernel_dim)
+
+        segmented_frames = single_gaussian_segmentation(background, variance, frames, alpha)
         segmented_frames = apply_roi_on_segmented_frames(segmented_frames)
-        #cv2.imwrite('./results/week2/example_after_roi.png', segmented_frames[-1][1])
-
-        #cv2.imwrite('./results/week2/example_before_opening.png', segmented_frames[-1][1])
-        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
         segmented_frames = remove_noise_on_segmented_frames(segmented_frames, kernel)
-        #cv2.imwrite('./results/week2/example_after_opening.png', segmented_frames[-1][1])
 
-        annotations = find_objects_in_segmented_frames(segmented_frames, (20, 20))
+        annotations = find_objects_in_segmented_frames(segmented_frames, region_to_detect)
 
-        frames_dict = {}
-        for frame_idx, frame in segmented_frames:
-            frames_dict[frame_idx] = frame
-
-        frame_idx = annotations[-1].frame
-        frame = frames_dict[frame_idx]
-
-        """
-        cv2.imwrite('./results/week2/example_before_find_bbox.png', frames_dict[frame_idx])
-        for annon in annotations:
-            if annon.frame == frame_idx:
-                frame = cv2.rectangle(frame, (int(annon.left), int(annon.top)), (int(annon.width), int(annon.height)), (255, 0, 0), 2)
-        cv2.imwrite('./results/week2/example_after_find_bbox.png', frame)
-        """
-
-        gt_path = str(Path.joinpath(Path(__file__).parent, './data/s03_c010-annotation.xml'))
-        gt_annotations = read_xml(gt_path, include_parked=True)
-
-        """
-        example_path = str(Path.joinpath(Path(__file__).parent, './data/s03_c010-ssd512.txt'))
-        example_annotations = read_txt(example_path)
-
-        print('SSD 512: ',mAP(example_annotations, gt_annotations, ['car'], True)[0])
-        """
-
+        gt_annotations = read_xml(gt_path, include_parked=include_parked)
         mapp, _, _, mious_per_class = mAP(annotations, gt_annotations, ['car'], False)
-        print('Segmentation: ', mapp)
 
+        print('mAP: ', mapp)
+
+        """
         frames_idx = set()
         for annon in annotations:
             frames_idx.add(annon.frame)
@@ -90,7 +79,7 @@ def task1_2():
 
 
         generate_video(video_path, list(frames_idx), gt_annotations, annotations, 'test', 'example2.gif', mious_per_frame)
-
+        """
 
 task1_2()
 
