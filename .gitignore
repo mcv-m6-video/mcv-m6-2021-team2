@@ -22,6 +22,7 @@ __pycache__/
 
 # C extensions
 *.so
+*.pickle
 
 # Distribution / packaging
 .Python

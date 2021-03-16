@@ -21,9 +21,27 @@ def single_gaussian_segmentation(mean_model_background: np.array,
 
     return segmented_frames
 
-def apply_roi_on_segmented_frames(frames: List[Tuple[int, np.array]]) -> List[Tuple[int, np.array]]:
-    roi_path = str(Path.joinpath(Path(__file__).parent, '../data/roi.jpg'))
+def single_adapted_gaussian_segmentation(mean_model_background: np.array,
+                                 variance_model_background: np.array,
+                                 frames: List[Tuple[int, np.array]],
+                                 alpha: float,
+                                 rho: float) -> List[Tuple[int, np.array]]:
 
+    frames_shape = frames[-1][1].shape
+    foreground_frames = []
+
+    for i, (frame_idx, frame) in enumerate(frames):
+        fg = np.abs(frame-mean_model_background) >= (alpha * (variance_model_background + 2))
+        bg = ~fg
+        mean_model_background[bg] = rho * frame[bg] + (1 - rho) * mean_model_background[bg]
+        variance_model_background[bg] = np.sqrt(
+            rho * np.power(frame[bg] - mean_model_background[bg], 2) + (1-rho) * np.power(variance_model_background[bg], 2)
+        )
+        foreground_frames.append((frame_idx, (fg*255).astype(np.uint8)))
+
+    return foreground_frames
+
+def apply_roi_on_segmented_frames(frames: List[Tuple[int, np.array]], roi_path: str) -> List[Tuple[int, np.array]]:
     roi = cv2.imread(roi_path, cv2.COLOR_BGR2GRAY)
 
     for i, (frame_idx, frame) in enumerate(frames):
@@ -35,7 +53,11 @@ def remove_noise_on_segmented_frames(frames: List[Tuple[int, np.array]],
                                      kernel: np.array) -> List[Tuple[int, np.array]]:
 
     for i, (frame_idx, frame) in enumerate(frames):
-        frames[i] = (frame_idx, cv2.morphologyEx(frame, cv2.MORPH_OPEN, kernel))
+        # To close little holes in the masks
+        mask = cv2.morphologyEx(frame, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3)))
+        # To remove noise around the masks
+        mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (9, 9)))
+        frames[i] = (frame_idx, mask)
 
     return frames
 

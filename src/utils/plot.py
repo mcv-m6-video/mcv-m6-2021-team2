@@ -10,6 +10,7 @@ import matplotlib.animation as animation
 from IPython.display import display
 from PIL import Image, ImageDraw
 from pathlib import Path
+from typing import List, NoReturn
 
 
 def visualize_random_frames(frames_directory, bounding_boxes, frames_to_show=4):
