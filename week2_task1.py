@@ -35,17 +35,17 @@ def task1_1():
 def task1_2():
     background, variance = generate_model(video_path, percentatge_frame_to_use)
 
-    for alpha in [2.0]:
+    for alpha in [2.0, 3.0, 4.0, 5.0]:
         segmented_frames = single_gaussian_segmentation(background, variance, frames[:100], alpha)
 
-        cv2.imwrite('./results/week2/example_before_roi.png', segmented_frames[-1][1])
+        #cv2.imwrite('./results/week2/example_before_roi.png', segmented_frames[-1][1])
         segmented_frames = apply_roi_on_segmented_frames(segmented_frames)
-        cv2.imwrite('./results/week2/example_after_roi.png', segmented_frames[-1][1])
+        #cv2.imwrite('./results/week2/example_after_roi.png', segmented_frames[-1][1])
 
-        cv2.imwrite('./results/week2/example_before_opening.png', segmented_frames[-1][1])
+        #cv2.imwrite('./results/week2/example_before_opening.png', segmented_frames[-1][1])
         kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
         segmented_frames = remove_noise_on_segmented_frames(segmented_frames, kernel)
-        cv2.imwrite('./results/week2/example_after_opening.png', segmented_frames[-1][1])
+        #cv2.imwrite('./results/week2/example_after_opening.png', segmented_frames[-1][1])
 
         annotations = find_objects_in_segmented_frames(segmented_frames, (20, 20))
 
@@ -56,19 +56,23 @@ def task1_2():
         frame_idx = annotations[-1].frame
         frame = frames_dict[frame_idx]
 
+        """
         cv2.imwrite('./results/week2/example_before_find_bbox.png', frames_dict[frame_idx])
         for annon in annotations:
             if annon.frame == frame_idx:
                 frame = cv2.rectangle(frame, (int(annon.left), int(annon.top)), (int(annon.width), int(annon.height)), (255, 0, 0), 2)
         cv2.imwrite('./results/week2/example_after_find_bbox.png', frame)
+        """
 
         gt_path = str(Path.joinpath(Path(__file__).parent, './data/s03_c010-annotation.xml'))
         gt_annotations = read_xml(gt_path, include_parked=True)
 
+        """
         example_path = str(Path.joinpath(Path(__file__).parent, './data/s03_c010-ssd512.txt'))
         example_annotations = read_txt(example_path)
 
         print('SSD 512: ',mAP(example_annotations, gt_annotations, ['car'], True)[0])
+        """
 
         mapp, _, _, mious_per_class = mAP(annotations, gt_annotations, ['car'], False)
         print('Segmentation: ', mapp)
@@ -77,7 +81,7 @@ def task1_2():
         for annon in annotations:
             frames_idx.add(annon.frame)
 
-        generate_video(video_path, list(frames_idx), gt_annotations, annotations, 'test', 'example.gif')
+        #generate_video(video_path, list(frames_idx), gt_annotations, annotations, 'test', 'example.gif')
 
         mious_per_frame = []
         for frame_idx in list(frames_idx):
