@@ -4,6 +4,8 @@
 .AppleDouble
 .LSOverride
 
+*.pickle
+
 # Folders
 results/
 data/
