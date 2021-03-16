@@ -36,6 +36,7 @@ def remove_noise_on_segmented_frames(frames: List[Tuple[int, np.array]],
 
     for i, (frame_idx, frame) in enumerate(frames):
         frames[i] = (frame_idx, cv2.morphologyEx(frame, cv2.MORPH_OPEN, kernel))
+        frames[i] = (frame_idx, cv2.morphologyEx(frame, cv2.MORPH_CLOSE, kernel))
 
     return frames
 
