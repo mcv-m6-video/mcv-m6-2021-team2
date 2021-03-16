@@ -23,7 +23,9 @@ def voc_ap(pred_annons: List[Annotation],
 
     for predict_idx, pred_annon in enumerate(pred_annons):
         iou = 0
-        gt = gt_frames[pred_annon.frame]
+        gt = []
+        if pred_annon.frame in gt_frames:
+            gt = gt_frames[pred_annon.frame]
 
         if gt:
             ious = [IoU(x, pred_annon) for x in gt['annon']]
