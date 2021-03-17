@@ -23,7 +23,7 @@ FRAMES_LOCATION = DATA_ROOT / 'frames'
 RESULTS_ROOT = Path('results')
 VIDEO_PATH = AICITY_DATA_ROOT / 'vdo.avi'
 ROI_PATH = AICITY_DATA_ROOT / 'roi.jpg'
-BG_SUBS_METHOD_LIST = ["MOG", "MOG2", "LSBP", "GSOC", "KNN"]
+BG_SUBS_METHOD_LIST = ["CNT","GMG","KNN","GSOC","LSBP","MOG","MOG2"]
 
 assert DATA_ROOT.exists()
 assert FULL_ANNOTATION_PATH.exists()
@@ -91,21 +91,35 @@ def bounding_boxes(mask, frame_id, min_height=100, max_height=600, min_width=120
 def bg_subs_selector(bg_subs):
     if bg_subs == "MOG":
         substractor = cv2.bgsegm.createBackgroundSubtractorMOG(
-            nmixtures=2, history=200)
+            nmixtures=2, history=50)
     elif bg_subs == "MOG2":
         substractor = cv2.createBackgroundSubtractorMOG2(
-            detectShadows=False, history=200)
+            detectShadows=False, history=50)
     elif bg_subs == "LSBP":
         substractor = cv2.bgsegm.createBackgroundSubtractorLSBP(
             minCount=5, mc=cv2.bgsegm.LSBP_CAMERA_MOTION_COMPENSATION_NONE)
     elif bg_subs == "GSOC":
-        substractor = cv2.bgsegm.createBackgroundSubtractorGSOC()
+        substractor = cv2.bgsegm.createBackgroundSubtractorGSOC(
+            nSamples=100, 
+            replaceRate=0.009, 
+            propagationRate=0.005, 
+            noiseRemovalThresholdFacBG=0.004, 
+            noiseRemovalThresholdFacFG=0.008)
     elif bg_subs == "KNN":
-        substractor = cv2.createBackgroundSubtractorKNN()
+        substractor = cv2.createBackgroundSubtractorKNN(history=50, dist2Threshold=200, detectShadows=False)
+    elif bg_subs == "GMG":
+        substractor = cv2.bgsegm.createBackgroundSubtractorGMG(
+            initializationFrames=300)
     elif bg_subs == "CNT":
-        substractor = cv2.bgsegm.createBackgroundSubtractorCNT()
+        substractor = cv2.bgsegm.createBackgroundSubtractorCNT(
+            minPixelStability=10, useHistory=True, isParallel=True)
     return substractor
 
+
+
+with open('SotA_mAPs.txt', 'a') as file:
+    results_line = f'\n\n#################\n#################\n'
+    file.write(results_line)
 
 frame_files, frame_h, frame_w = get_frames_from_video(
     path=str(VIDEO_PATH), grayscale=True)
@@ -133,8 +147,8 @@ for bg_sub_method in BG_SUBS_METHOD_LIST:
     bg_substractor = bg_subs_selector(bg_sub_method)
     pred_bboxes_all_frames = OrderedDict()
     if (Path(f"{bg_sub_method}_boxes.pickle").exists()):
-        print("Found {bg_sub_method}_boxes pkl, loading")
-        with open('{bg_sub_method}_boxes.pickle', 'rb') as f:
+        print(f"Found {bg_sub_method}_boxes pkl, loading")
+        with open(f'{bg_sub_method}_boxes.pickle', 'rb') as f:
             pred_bboxes_all_frames=  pickle.load(f)
     
     else:
