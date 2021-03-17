@@ -23,7 +23,7 @@ FRAMES_LOCATION = DATA_ROOT / 'frames'
 RESULTS_ROOT = Path('results')
 VIDEO_PATH = AICITY_DATA_ROOT / 'vdo.avi'
 ROI_PATH = AICITY_DATA_ROOT / 'roi.jpg'
-BG_SUBS_METHOD_LIST = ["CNT","GMG","KNN","GSOC","LSBP","MOG","MOG2"]
+BG_SUBS_METHOD_LIST = ["CNT","MOG","MOG2","KNN","GSOC","LSBP","GMG"]
 
 assert DATA_ROOT.exists()
 assert FULL_ANNOTATION_PATH.exists()
@@ -71,7 +71,7 @@ class BoundingBox():
         return f'BoundingBox:: frame:{self.frame}, instance_id:{self.instance_id}, label: {self.label}, confidence: {self.confidence}'
 
 
-def bounding_boxes(mask, frame_id, min_height=100, max_height=600, min_width=120, max_width=800):
+def bounding_boxes(mask, frame_id, min_height=10, max_height=600, min_width=76, max_width=800):
 
     mask = cv2.morphologyEx(
         mask, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3)))
@@ -87,6 +87,27 @@ def bounding_boxes(mask, frame_id, min_height=100, max_height=600, min_width=120
                 frame_id, None, 'car', x, y, x + w, y + h))
     return detections
 
+
+def draw_text(img, text,
+          font=cv2.FONT_HERSHEY_PLAIN,
+          pos=(0, 0),
+          font_scale=3,
+          font_thickness=2,
+          text_color=(0, 255, 0),
+          text_color_bg=(0, 0, 0)
+          ):
+
+    x, y = pos
+    text_size, _ = cv2.getTextSize(text, font, font_scale, font_thickness)
+    text_w, text_h = text_size
+    overlay = img.copy()
+    output = img.copy()
+    alpha = 0.3
+    cv2.rectangle(overlay, pos, (x + text_w, y + text_h), text_color_bg, -1)
+    cv2.putText(overlay, text, (x, y + text_h + font_scale - 1),
+                font, font_scale, text_color, font_thickness)
+    cv2.addWeighted(overlay, alpha, output, 1 - alpha, 0, output)
+    return output
 
 def bg_subs_selector(bg_subs):
     if bg_subs == "MOG":
@@ -106,14 +127,26 @@ def bg_subs_selector(bg_subs):
             noiseRemovalThresholdFacBG=0.004, 
             noiseRemovalThresholdFacFG=0.008)
     elif bg_subs == "KNN":
-        substractor = cv2.createBackgroundSubtractorKNN(history=50, dist2Threshold=200, detectShadows=False)
+        substractor = cv2.createBackgroundSubtractorKNN(history=50, 
+        dist2Threshold=200, 
+        detectShadows=False)
     elif bg_subs == "GMG":
         substractor = cv2.bgsegm.createBackgroundSubtractorGMG(
-            initializationFrames=300)
+            initializationFrames=200,
+            decisionThreshold=0.7)
     elif bg_subs == "CNT":
         substractor = cv2.bgsegm.createBackgroundSubtractorCNT(
-            minPixelStability=10, useHistory=True, isParallel=True)
+            minPixelStability=2,
+            maxPixelStability=30,
+            useHistory=False, 
+            isParallel=True)
     return substractor
+
+#####################################################################################
+#####################################################################################
+#####################################################################################
+#####################################################################################
+#####################################################################################
 
 
 
@@ -172,12 +205,15 @@ for bg_sub_method in BG_SUBS_METHOD_LIST:
 
             ################################################################
 
+            
+            frame = cv2.GaussianBlur(frame, (7,7), 0)
+
             mask = bg_substractor.apply(frame)
             mask = mask & roi
             pred_bboxes = bounding_boxes(mask, i)
             pred_bboxes_all_frames[i] = pred_bboxes
 
-            font = cv2.FONT_HERSHEY_PLAIN
+            txt_font = cv2.FONT_HERSHEY_PLAIN
             fontsize = 4
 
             for item in pred_bboxes:
@@ -186,16 +222,27 @@ for bg_sub_method in BG_SUBS_METHOD_LIST:
                 x2 = item.xbr
                 y2 = item.ybr
                 color = (255, 0, 255)
-                fontX = x2 - abs(x2-x1) + 5
-                fontY = abs(y2-5)
-                rect_thickness = 3
+                fontX = x2 - abs(x2-x1) + fontsize*2
+                fontY = abs(y2-fontsize*2)
+                rect_thickness = 4
                 text_thickness = 2
 
                 cv2.rectangle(frame_bbox, (x1, y1), (x2, y2),
                             color, rect_thickness)
-                cv2.putText(frame_bbox, str(bg_sub_method), (fontX, fontY),
-                            font, fontsize, color, text_thickness, cv2.LINE_AA)
+                # cv2.putText(frame_bbox, str(bg_sub_method), (fontX, fontY),
+                #             font, fontsize, color, text_thickness, cv2.LINE_AA)
+                frame_bbox = draw_text(frame_bbox, str(bg_sub_method), font=txt_font, pos=(fontX, fontY), font_scale=fontsize,
+                font_thickness=text_thickness, text_color=color, text_color_bg=(0,0,0))
 
+
+            
+            scale_percent = 50 # percent of original size
+            width = int(frame_bbox.shape[1] * scale_percent / 100)
+            height = int(frame_bbox.shape[0] * scale_percent / 100)
+            dim = (width, height)
+            
+            # resize image
+            frame_bbox = cv2.resize(frame_bbox, dim, interpolation = cv2.INTER_AREA)
             cv2.imwrite(f"{imgpath}/frame_{i:07d}.jpg", frame_bbox)
 
             txt = f' {bg_sub_method} working on frame {i} of {total_files}. found {len(pred_bboxes)} bboxes'
@@ -205,6 +252,7 @@ for bg_sub_method in BG_SUBS_METHOD_LIST:
 
             with open(f'{bg_sub_method}_boxes.pickle', 'wb') as f:
                 pickle.dump(pred_bboxes_all_frames, f)
+    
 
     cl = ['car']
 
