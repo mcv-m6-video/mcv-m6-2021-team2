@@ -4,10 +4,10 @@ from uuid import uuid4
 @dataclass
 class Annotation:
     frame: int
-    left: float
-    top: float
-    width: float
-    height: float
+    left: int
+    top: int
+    width: int
+    height: int
     label: str
     score: float = None
     guid: str = None

@@ -41,14 +41,19 @@ def task1_2():
     background, variance = generate_model(video_path, percentatge_frame_to_use)
     alphas = [2.0, 2.5, 3.0, 3,5, 4.0, 4.5, 5.0, 5.0, 5.5, 6.0]
     kernels = [(5,5), (6,6), (2,2), (4,4), (7,7), (1,1), (3,3)]
-    regions_to_detect = [(100,100), (150, 150), (200, 150), (400, 300), (300 ,300), (500, 200)]
+    regions_to_detect = [(100,100), (50, 50), (100, 75), (150, 200), (150, 150), (125, 100), (75, 100)]
     include_parked_cars = [True, False]
 
-    for n in range(0, 10):
+    for n in range(0, 30):
         alpha = alphas[randint(0, len(alphas)-1)]
         kernel_dim = kernels[randint(0, len(kernels)-1)]
         region_to_detect = regions_to_detect[randint(0, len(regions_to_detect)-1)]
         include_parked = include_parked_cars[randint(0, 1)]
+
+        alpha=6.0
+        kernel_dim=(4,4)
+        region_to_detect=(100,100)
+        include_parked=False
 
         print(f'Run {n}/10: alpha {alpha} - kernel {kernel_dim} - region to detect {region_to_detect} - include parked {include_parked}')
 
@@ -65,21 +70,23 @@ def task1_2():
 
         print('mAP: ', mapp)
 
-        """
         frames_idx = set()
-        for annon in annotations:
-            frames_idx.add(annon.frame)
-
+        for frame_idx, _ in frames:
+            frames_idx.add(frame_idx)
+        frames_idx = list(frames_idx)[:200]
         #generate_video(video_path, list(frames_idx), gt_annotations, annotations, 'test', 'example.gif')
 
         mious_per_frame = []
-        for frame_idx in list(frames_idx):
-            miou = mious_per_class['car'][frame_idx]
+        for frame_idx in frames_idx:
+            if frame_idx in mious_per_class['car']:
+                miou = mious_per_class['car'][frame_idx]
+            else:
+                miou = 0.0
             mious_per_frame.append(miou)
 
 
-        generate_video(video_path, list(frames_idx), gt_annotations, annotations, 'test', 'example2.gif', mious_per_frame)
-        """
+        generate_video(video_path, frames_idx, gt_annotations, annotations, 'test', 'example2.gif', mious_per_frame)
+        return
 
 task1_2()
 
