@@ -33,11 +33,13 @@ def single_adapted_gaussian_segmentation(mean_model_background: np.array,
     for i, (frame_idx, frame) in enumerate(frames):
         fg = np.abs(frame-mean_model_background) >= (alpha * (variance_model_background + 2))
         bg = ~fg
+        segmented_frame = np.zeros((frame.shape))
+        segmented_frame[np.abs(frame - mean_model_background) >= alpha * (variance_model_background + 2)] = 255
         mean_model_background[bg] = rho * frame[bg] + (1 - rho) * mean_model_background[bg]
         variance_model_background[bg] = np.sqrt(
             rho * np.power(frame[bg] - mean_model_background[bg], 2) + (1-rho) * np.power(variance_model_background[bg], 2)
         )
-        foreground_frames.append((frame_idx, (fg*255).astype(np.uint8)))
+        foreground_frames.append((frame_idx, np.ascontiguousarray(segmented_frame).astype("uint8")))
 
     return foreground_frames
 

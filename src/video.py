@@ -13,7 +13,8 @@ import pickle
 import os
 
 def get_frames_from_video(path: str,
-                          grayscale: bool = True) -> Tuple[List[np.array], int, int]:
+                          grayscale: bool = True,
+                          colorspace: str = 'gray') -> Tuple[List[np.array], int, int]:
 
     if not Path(path).exists:
         raise FileNotFoundError(f'Video path not found: {path}.')
@@ -37,6 +38,12 @@ def get_frames_from_video(path: str,
         if has_frames:
             if grayscale:
                 frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            elif colorspace == 'rgb':
+                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            elif colorspace == 'hsv':
+                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+            elif colorspace == 'lab':
+                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2Lab)
 
             video_frames.append(frame)
 
@@ -68,6 +75,26 @@ def generate_model(video_path: str,
         variance_model_background = np.std(video_frames[:num_frames_to_use], axis=0)
 
     return mean_model_background, variance_model_background
+
+def get_multi_model(video_path: str,
+                   perctatge_use_frames: float,
+                   colorspace: str = 'rgb') -> Tuple[np.array, np.array]:
+    video_frames, frame_width, frame_height = get_frames_from_video(video_path, False, colorspace=colorspace)
+
+    if perctatge_use_frames < 0.0 or perctatge_use_frames > 1.0:
+        raise ValueError("The percentatge use of frames should be [0,1].")
+
+    num_frames_to_use = int(len(video_frames)*perctatge_use_frames)
+
+    mean_model_background = np.zeros((frame_height, frame_width, 3))
+    variance_model_background = np.zeros((frame_height, frame_width, 3))
+
+    if num_frames_to_use > 0:
+        mean_model_background = np.mean(video_frames[:num_frames_to_use], axis=0)
+        variance_model_background = np.std(video_frames[:num_frames_to_use], axis=0)
+
+    return mean_model_background, variance_model_background
+
 
 def generate_video_from_frames(output_path: str,
                                scale: float,
