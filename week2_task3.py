@@ -23,7 +23,7 @@ FRAMES_LOCATION = DATA_ROOT / 'frames'
 RESULTS_ROOT = Path('results')
 VIDEO_PATH = AICITY_DATA_ROOT / 'vdo.avi'
 ROI_PATH = AICITY_DATA_ROOT / 'roi.jpg'
-BG_SUBS_METHOD_LIST = ["CNT","MOG","MOG2","KNN","GSOC","LSBP","GMG"]
+BG_SUBS_METHOD_LIST = ["CNT","MOG","KNN","MOG2","GMG","GSOC","LSBP"]
 
 assert DATA_ROOT.exists()
 assert FULL_ANNOTATION_PATH.exists()
@@ -206,7 +206,7 @@ for bg_sub_method in BG_SUBS_METHOD_LIST:
             ################################################################
 
             
-            frame = cv2.GaussianBlur(frame, (7,7), 0)
+            frame = cv2.GaussianBlur(frame, (13,13), 0)
 
             mask = bg_substractor.apply(frame)
             mask = mask & roi
