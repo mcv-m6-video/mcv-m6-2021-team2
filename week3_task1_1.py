@@ -6,10 +6,13 @@
 # * Compute the mAP using Retina (optional)
 
 import logging
+import cv2
+from threading import Thread
 from pathlib import Path
 
 from src.models.pre_trained import torchvision_inference
 from src.readers.ai_city_reader import AICityChallengeAnnotationReader
+from src.video import generate_video
 from src.metrics.map import mAP
 
 logging.basicConfig(format='%(asctime)s - %(message)s', level=logging.DEBUG)
@@ -26,11 +29,12 @@ torchvision_inference(model_name='fasterrcnn',
 """
 
 pred_reader = AICityChallengeAnnotationReader(result_path)
-pred_annotations = pred_reader.get_annotations()
+pred_annotations = pred_reader.get_annotations(classes=['car'])
 
 gt_reader = AICityChallengeAnnotationReader(gt_path)
-gt_annotations = gt_reader.get_annotations()
+gt_annotations = gt_reader.get_annotations(classes=['car'])
 
+"""
 y_true = []
 y_pred = []
 for frame in pred_annotations.keys():
@@ -40,3 +44,6 @@ for frame in pred_annotations.keys():
 
 ap, prec, rec = mAP(y_true, y_pred, classes=['car'])
 print(f'AP: {ap:.4f}, Precision: {prec:.4f}, Recall: {rec:.4f}')
+"""
+
+generate_video(video_path, 'example.mp4', pred_annotations, gt_annotations, 211, 700)

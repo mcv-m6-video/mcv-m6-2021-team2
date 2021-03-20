@@ -1,4 +1,4 @@
-from typing import List, Tuple, NoReturn
+from typing import List, Tuple, NoReturn, OrderedDict
 from pathlib import Path
 from moviepy.editor import ImageSequenceClip
 import matplotlib.pyplot as plt
@@ -12,15 +12,15 @@ import shutil
 import pickle
 import os
 
-def get_frames_from_video(path: str,
+def get_frames_from_video(video_path: str,
                           colorspace: str = 'rgb',
                           start_frame: int = 0,
                           end_frame: int = np.inf) -> Tuple[int, np.array]:
 
-    if not Path(path).exists:
-        raise FileNotFoundError(f'Video path not found: {path}.')
+    if not Path(video_path).exists:
+        raise FileNotFoundError(f'Video path not found: {video_path}.')
 
-    cap = cv2.VideoCapture(path)
+    cap = cv2.VideoCapture(video_path)
     frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
     if start_frame < 0:
@@ -56,6 +56,48 @@ def get_frames_from_video(path: str,
 
     cap.release()
     yield (0, None)
+
+def generate_video(video_path: str,
+                   output_path: str,
+                   predictions: OrderedDict,
+                   gt: OrderedDict,
+                   start_frame: int = 0,
+                   end_frame: int = np.inf) -> NoReturn:
+
+    if not Path(video_path).exists:
+        raise FileNotFoundError(f'Video path not found: {video_path}.')
+
+    cap = cv2.VideoCapture(video_path)
+    frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+
+    if start_frame < 0:
+        raise ValueError(f"Start frame ({start_frame}) should be greater than 0.")
+    if end_frame == np.inf:
+        end_frame = frame_count
+    elif end_frame > frame_count:
+        raise ValueError(f"End frame ({end_frame}) is greater than {frame_count} which is the number of video frames.")
+
+    logging.debug(f'Processing video from frames: {start_frame} to {end_frame} ...')
+
+    out = cv2.VideoWriter(output_path, cv2.VideoWriter_fourcc(*'MP4V'), 10, (int(cap.get(3)),int(cap.get(4))))
+
+    for frame in range(start_frame, end_frame):
+        cap.set(cv2.CAP_PROP_POS_FRAMES, frame)
+
+        _, img = cap.read()
+
+        detections_on_frame = predictions.get(frame, [])
+        for det in detections_on_frame:
+            cv2.rectangle(img, (int(det.xtl), int(det.ytl)), (int(det.xbr), int(det.ybr)), (0, 0, 255), 2)
+
+        gt_on_frame = gt.get(frame, [])
+        for det in gt_on_frame:
+            cv2.rectangle(img, (int(det.xtl), int(det.ytl)), (int(det.xbr), int(det.ybr)), (0, 255, 0), 2)
+
+        out.write(img)
+
+    cap.release()
+    out.release()
 
 
 def generate_model(video_path: str,
