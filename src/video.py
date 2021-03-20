@@ -13,30 +13,32 @@ import pickle
 import os
 
 def get_frames_from_video(path: str,
-                          grayscale: bool = True,
-                          colorspace: str = 'gray') -> Tuple[List[np.array], int, int]:
+                          colorspace: str = 'rgb',
+                          start_frame: int = 0,
+                          end_frame: int = np.inf) -> Tuple[int, np.array]:
 
     if not Path(path).exists:
         raise FileNotFoundError(f'Video path not found: {path}.')
 
-    logging.info(f"Processing video from: {path} ...")
-
-    if Path('video_frames.pickle').exists():
-        with open('video_frames.pickle', 'rb') as f:
-            return pickle.load(f)
-
     cap = cv2.VideoCapture(path)
+    frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
-    video_frames = []
-    frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-    frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    has_frames = True
+    if start_frame < 0:
+        raise ValueError(f"Start frame ({start_frame}) should be greater than 0.")
+    if end_frame == np.inf:
+        end_frame = frame_count
+    elif end_frame > frame_count:
+        raise ValueError(f"End frame ({end_frame}) is greater than {frame_count} which is the number of video frames.")
 
-    while has_frames:
+    logging.debug(f'Processing video from frames: {start_frame} to {end_frame} ...')
+    for frame_idx in range(start_frame, end_frame):
+        cap.set(cv2.CAP_PROP_POS_FRAMES, frame_idx)
         has_frames, frame = cap.read()
 
+        logging.debug(f'Frame: {frame_idx+1}/{end_frame}.')
+
         if has_frames:
-            if grayscale:
+            if colorspace == 'gray':
                 frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             elif colorspace == 'rgb':
                 frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -44,17 +46,17 @@ def get_frames_from_video(path: str,
                 frame = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
             elif colorspace == 'lab':
                 frame = cv2.cvtColor(frame, cv2.COLOR_BGR2Lab)
+            else:
+                raise NotImplementedError(f'The colorspace {colorspace} is not supported.')
 
-            video_frames.append(frame)
+            yield (frame_idx+1, frame)
+            frame_idx += 1
+        else:
+            logging.error(f'The video doesn\'t have the frame {frame_idx+1}.')
 
     cap.release()
+    yield (0, None)
 
-    logging.info(f"Total frames processed: {len(video_frames)} ...")
-
-    with open('video_frames.pickle', 'wb') as f:
-        pickle.dump((video_frames, frame_width, frame_height), f)
-
-    return video_frames, frame_width, frame_height
 
 def generate_model(video_path: str,
                    perctatge_use_frames: float,

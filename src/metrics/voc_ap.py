@@ -1,58 +1,54 @@
 from typing import Tuple, List, Dict
 import numpy as np
 
-from src.annotation import Annotation
 from src.metrics.iou import IoU
 
-def voc_ap(pred_annons: List[Annotation],
-           gt_annons: List[Annotation],
-           th: float = 0.5) -> Tuple[float, float, float, Dict[int, float]]:
+def voc_ap(y_true, y_pred, ovthresh=0.5):
+    class_recs = []
+    npos = 0
+    for R in y_true:
+        bbox = np.array([det.bbox for det in R])
+        det = [False] * len(R)
+        npos += len(R)
+        class_recs.append({"bbox": bbox, "det": det})
 
-    gt_frames = {}
-    for annon in gt_annons:
-        frame = annon.frame
+    image_ids = [det[0] for det in y_pred]
+    BB = np.array([det[1].bbox for det in y_pred]).reshape(-1, 4)
 
-        if frame not in gt_frames:
-            gt_frames[frame] = {'annon': [], 'used': []}
-        gt_frames[frame]['annon'].append(annon)
-        gt_frames[frame]['used'].append(False)
+    # go down dets and mark TPs and FPs
+    nd = len(image_ids)
+    tp = np.zeros(nd)
+    fp = np.zeros(nd)
+    for d in range(nd):
+        R = class_recs[image_ids[d]]
+        bb = BB[d, :].astype(float)
+        ovmax = -np.inf
+        BBGT = R["bbox"].astype(float)
 
-    tp = np.zeros(len(pred_annons))
-    fp = np.zeros(len(pred_annons))
-    mious = {}
+        if BBGT.size > 0:
+            # compute overlaps
+            overlaps = IoU(BBGT, bb[None, :])
+            ovmax = np.max(overlaps)
+            jmax = np.argmax(overlaps)
 
-    for predict_idx, pred_annon in enumerate(pred_annons):
-        iou = 0
-        gt = []
-        if pred_annon.frame in gt_frames:
-            gt = gt_frames[pred_annon.frame]
-
-        if gt:
-            ious = [IoU(x, pred_annon) for x in gt['annon']]
-            iou = np.max(ious)
-            idx_gt_used = np.argmax(ious)
-
-        if iou > th:
-            if not gt['used'][idx_gt_used]:
-                tp[predict_idx] = 1.0
-                gt['used'][idx_gt_used] = True
+        if ovmax > ovthresh:
+            if not R["det"][jmax]:
+                tp[d] = 1.0
+                R["det"][jmax] = 1
             else:
-                fp[predict_idx] = 1.0
+                fp[d] = 1.0
         else:
-            fp[predict_idx] = 1.0
+            fp[d] = 1.0
 
-        mious.setdefault(predict_idx, []).append(iou)
-
-    for predict_idx, miou in mious.items():
-        mious[predict_idx] = np.mean(miou)
-
+    # compute precision recall
     fp = np.cumsum(fp)
     tp = np.cumsum(tp)
-
-    rec = tp / float(len(gt_annons))
-
+    rec = tp / float(npos)
+    # avoid divide by zero in case the first detection matches a difficult
+    # ground truth
     prec = tp / np.maximum(tp + fp, np.finfo(np.float64).eps)
 
+    # compute VOC AP using 11 point metric
     ap = 0.0
     for t in np.arange(0.0, 1.1, 0.1):
         if np.sum(rec >= t) == 0:
@@ -61,4 +57,4 @@ def voc_ap(pred_annons: List[Annotation],
             p = np.max(prec[rec >= t])
         ap = ap + p / 11.0
 
-    return ap, prec, rec, mious
+    return ap, prec, rec
