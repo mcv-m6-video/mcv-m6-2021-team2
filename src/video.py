@@ -1,6 +1,7 @@
 from typing import List, Tuple, NoReturn, OrderedDict
+
 from pathlib import Path
-from moviepy.editor import ImageSequenceClip
+
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from pygifsicle import optimize
@@ -8,9 +9,6 @@ import logging
 import numpy as np
 import imageio
 import cv2
-import shutil
-import pickle
-import os
 
 def get_frames_from_video(video_path: str,
                           colorspace: str = 'rgb',
