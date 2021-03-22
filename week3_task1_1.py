@@ -22,8 +22,8 @@ logging.basicConfig(format='%(asctime)s - %(message)s', level=logging.DEBUG)
 video_path = str(Path.joinpath(Path(__file__).parent, './data/vdo.avi'))
 gt_path = str(Path.joinpath(Path(__file__).parent, './data/s03_c010-annotation.xml'))
 
-retinanet_result_path = str(Path.joinpath(Path(__file__).parent, './results/s03_c010-retinanet.txt'))
-faster_rcnn_result_path = str(Path.joinpath(Path(__file__).parent, './results/s03_c010-faster_rcnn.txt'))
+retinanet_result_path = str(Path.joinpath(Path(__file__).parent, './results/week3/s03_c010-retinanet.txt'))
+faster_rcnn_result_path = str(Path.joinpath(Path(__file__).parent, './results/week3/s03_c010-faster_rcnn.txt'))
 
 
 torchvision_inference(model_name='fasterrcnn',
