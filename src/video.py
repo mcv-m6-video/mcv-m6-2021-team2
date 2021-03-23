@@ -4,6 +4,8 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
+from matplotlib.animation import FuncAnimation
+import matplotlib.patches as patches
 from pygifsicle import optimize
 import logging
 import numpy as np
@@ -55,10 +57,62 @@ def get_frames_from_video(video_path: str,
     cap.release()
     yield (0, None)
 
+def get_video_lengh(video_path: str) -> int:
+    if not Path(video_path).exists:
+        raise FileNotFoundError(f'Video path not found: {video_path}.')
+
+    cap = cv2.VideoCapture(video_path)
+
+    num_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+
+    cap.release()
+
+    return num_frames
+
+
+def get_frame_from_video(video_path: str,
+                         frame: int,
+                         colorspace: str = 'rgb') -> np.array:
+
+    if not Path(video_path).exists:
+        raise FileNotFoundError(f'Video path not found: {video_path}.')
+
+    cap = cv2.VideoCapture(video_path)
+    frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+
+    if frame < 0:
+        raise ValueError(f"Frame ({frame}) should be greater than 0.")
+    elif frame > frame_count:
+        raise ValueError(f"Frame ({frame}) is greater than {frame_count} which is the number of video frames.")
+
+    logging.debug(f'Processing video frame: {frame} ...')
+
+    cap.set(cv2.CAP_PROP_POS_FRAMES, frame)
+
+    has_frames, frame = cap.read()
+
+    if has_frames:
+        if colorspace == 'gray':
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        elif colorspace == 'rgb':
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        elif colorspace == 'hsv':
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+        elif colorspace == 'lab':
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2Lab)
+        else:
+            raise NotImplementedError(f'The colorspace {colorspace} is not supported.')
+
+    cap.release()
+
+    return frame
+
+
 def generate_video(video_path: str,
                    output_path: str,
                    predictions: OrderedDict,
                    gt: OrderedDict,
+                   title: str,
                    start_frame: int = 0,
                    end_frame: int = np.inf) -> NoReturn:
 
@@ -67,6 +121,7 @@ def generate_video(video_path: str,
 
     cap = cv2.VideoCapture(video_path)
     frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    logging.getLogger('matplotlib.font_manager').disabled = True
 
     if start_frame < 0:
         raise ValueError(f"Start frame ({start_frame}) should be greater than 0.")
@@ -77,25 +132,42 @@ def generate_video(video_path: str,
 
     logging.debug(f'Processing video from frames: {start_frame} to {end_frame} ...')
 
-    out = cv2.VideoWriter(output_path, cv2.VideoWriter_fourcc(*'MP4V'), 10, (int(cap.get(3)),int(cap.get(4))))
+    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
 
-    for frame in range(start_frame, end_frame):
-        cap.set(cv2.CAP_PROP_POS_FRAMES, frame)
+    fig, ax = plt.subplots(1, 1, figsize=(10, 5))
+    image = ax.imshow(np.zeros((height, width)))
+    artists = [image]
 
-        _, img = cap.read()
+    frames_index = list(range(start_frame, end_frame, 1))
 
-        detections_on_frame = predictions.get(frame, [])
+    def update(i):
+        cap.set(cv2.CAP_PROP_POS_FRAMES, frames_index[i])
+
+        ret, img = cap.read()
+
+        detections_on_frame = predictions.get(frames_index[i], [])
         for det in detections_on_frame:
             cv2.rectangle(img, (int(det.xtl), int(det.ytl)), (int(det.xbr), int(det.ybr)), (0, 0, 255), 2)
 
-        gt_on_frame = gt.get(frame, [])
+        gt_on_frame = gt.get(frames_index[i], [])
         for det in gt_on_frame:
             cv2.rectangle(img, (int(det.xtl), int(det.ytl)), (int(det.xbr), int(det.ybr)), (0, 255, 0), 2)
 
-        out.write(img)
+        artists[0].set_data(img[:, :, ::-1])
+
+        return artists
+
+    ani = FuncAnimation(fig, update, len(frames_index), interval=2, blit=True)
+
+    ax.set_xticks([])
+    ax.set_yticks([])
+    ax.legend(handles=[patches.Patch(color="green", label="GT"), patches.Patch(color="red", label="Pred")])
+
+    fig.suptitle(title)
+    ani.save(output_path, writer='imagemagick')
 
     cap.release()
-    out.release()
 
 
 def generate_model(video_path: str,
