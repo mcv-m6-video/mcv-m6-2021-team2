@@ -17,7 +17,7 @@ from src.video import get_frames_from_video
 def task1_2(generate_video_frames: bool = False,
             model_name: str = 'COCO-Detection/faster_rcnn_R_50_FPN_3x.yml',
             model_output_path: str = str(Path.joinpath(Path(__file__).parent, './detectron_models/')),
-            strategy: str = 'all'):
+            strategy: str = 'A'):
 
     os.makedirs(model_output_path, exist_ok=True)
     video_path = str(Path.joinpath(Path(__file__).parent, './data/vdo.avi'))
@@ -36,7 +36,7 @@ def task1_2(generate_video_frames: bool = False,
 
     indices = list(gt_annotations.keys())
 
-    if strategy == 'A' or strategy == 'all':
+    if strategy == 'A':
         result_path = str(Path.joinpath(Path(__file__).parent, f'./results/week3/{Path(model_name).stem}_A.txt'))
         train_idx = indices[:int(len(indices)*0.25)]
         test_idx = indices[int(len(indices)*0.25):]
@@ -46,7 +46,7 @@ def task1_2(generate_video_frames: bool = False,
                         model_output_path=model_output_path,
                         model_name=model_name,
                         results_path=result_path)
-    if strategy == 'B' or strategy == 'all':
+    if strategy == 'B':
         result_path = str(Path.joinpath(Path(__file__).parent, f'./results/week3/{Path(model_name).stem}_B.txt'))
         kf = KFold(n_splits=4)
         for train_idx, test_idx in kf.split(indices):
@@ -56,7 +56,7 @@ def task1_2(generate_video_frames: bool = False,
                             model_output_path=model_output_path,
                             model_name=model_name,
                             results_path=result_path)
-    if strategy == 'C' or strategy == 'all':
+    if strategy == 'C':
         result_path = str(Path.joinpath(Path(__file__).parent, f'./results/week3/{Path(model_name).stem}_C.txt'))
         kf = KFold(n_splits=4, shuffle=True)
         for train_idx, test_idx in kf.split(indices):
@@ -84,6 +84,7 @@ def task1_2(generate_video_frames: bool = False,
 if __name__ == "__main__":
     model_name = 'COCO-Detection/faster_rcnn_R_50_FPN_3x.yaml'
 
-    task1_2(generate_video_frames=False,
-            model_name=model_name,
-            strategy='all')
+    for strategy in ['A', 'B', 'C']:
+        task1_2(generate_video_frames=False,
+                model_name=model_name,
+                strategy=strategy)
