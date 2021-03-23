@@ -70,7 +70,7 @@ def detectron_train(train_idx: List[int],
     cfg.OUTPUT_DIR = model_output_path
     cfg.merge_from_file(model_zoo.get_config_file(model_name))
     cfg.DATASETS.TRAIN = ("aicity_train",)
-    cfg.DATASETS.TEST = ("aicity_test",)
+    cfg.DATASETS.TEST = ()
     cfg.DATALOADER.NUM_WORKERS = 2
     cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url(model_name)  # Let training initialize from model zoo
     cfg.SOLVER.IMS_PER_BATCH = 2

@@ -49,8 +49,6 @@ def task1_2(generate_video_frames: bool = False,
                         video_path=video_path,
                         results_path=result_path,
                         labels=[0],
-                        start_frame=0,
-                        end_frame=10,
                         colorspace='rgb',
                         weight_path=f'{model_output_path}/model_final.pth')
 
