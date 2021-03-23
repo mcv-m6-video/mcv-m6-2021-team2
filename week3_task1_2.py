@@ -17,7 +17,7 @@ from src.video import get_frames_from_video
 def task1_2(generate_video_frames: bool = False,
             model_name: str = 'COCO-Detection/faster_rcnn_R_50_FPN_3x.yml',
             model_output_path: str = str(Path.joinpath(Path(__file__).parent, './detectron_models/')),
-            strategy: str = 'A'):
+            strategy: str = 'all'):
 
     os.makedirs(model_output_path, exist_ok=True)
     video_path = str(Path.joinpath(Path(__file__).parent, './data/vdo.avi'))
@@ -79,10 +79,11 @@ def task1_2(generate_video_frames: bool = False,
 
     ap, prec, rec = mAP(y_true, y_pred, classes=['car'])
 
-    print(f'Arch: {model_name} AP: {ap:.4f}, Precision: {prec:.4f}, Recall: {rec:.4f}')
+    print(f'Strategy: {strategy} Arch: {model_name} AP: {ap:.4f}, Precision: {prec:.4f}, Recall: {rec:.4f}')
 
 if __name__ == "__main__":
     model_name = 'COCO-Detection/faster_rcnn_R_50_FPN_3x.yaml'
 
     task1_2(generate_video_frames=False,
-            model_name=model_name)
+            model_name=model_name,
+            strategy='all')
