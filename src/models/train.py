@@ -1,4 +1,4 @@
-from typing import OrderedDict, NoReturn
+from typing import OrderedDict, NoReturn, List
 
 import torch
 import logging
@@ -52,7 +52,11 @@ def get_dicts(frames, annotations):
     return dataset_dicts
 
 
-def detectron_train(train_idx, test_idx, annotations):
+def detectron_train(train_idx: List[int],
+                    test_idx: List[int],
+                    annotations: OrderedDict,
+                    model_output_path: str,
+                    model_name: str):
 
     DatasetCatalog.register("aicity_train", lambda d='train': get_dicts(train_idx, annotations))
     MetadataCatalog.get("aicity_train").set(thing_classes=["car"])
@@ -63,12 +67,12 @@ def detectron_train(train_idx, test_idx, annotations):
     balloon_metadata = MetadataCatalog.get("aicity_train")
 
     cfg = get_cfg()
-    cfg.OUTPUT_DIR = str(Path.joinpath(Path(__file__).parent, '../../results'))
-    cfg.merge_from_file(model_zoo.get_config_file("COCO-Detection/faster_rcnn_R_50_FPN_1x.yaml"))
+    cfg.OUTPUT_DIR = model_output_path
+    cfg.merge_from_file(model_zoo.get_config_file(model_name))
     cfg.DATASETS.TRAIN = ("aicity_train",)
     cfg.DATASETS.TEST = ("aicity_test",)
     cfg.DATALOADER.NUM_WORKERS = 2
-    cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url("COCO-Detection/faster_rcnn_R_50_FPN_1x.yaml")  # Let training initialize from model zoo
+    cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url(model_name)  # Let training initialize from model zoo
     cfg.SOLVER.IMS_PER_BATCH = 2
     cfg.SOLVER.BASE_LR = 0.00025  # pick a good LR
     cfg.SOLVER.MAX_ITER = 300    # 300 iterations seems good enough for this toy dataset; you will need to train longer for a practical dataset

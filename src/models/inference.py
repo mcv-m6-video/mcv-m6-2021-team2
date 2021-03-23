@@ -83,7 +83,7 @@ def detectron_inference(model_name: str,
     if weight_path:
         cfg.MODEL.WEIGHTS = weight_path
     else:
-        cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url(model_name})
+        cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url(model_name)
 
     cfg.OUTPUT_DIR = str(Path.joinpath(Path(__file__).parent, '../../results'))
 

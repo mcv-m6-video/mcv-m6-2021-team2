@@ -13,10 +13,13 @@ from src.metrics.map import mAP
 from src.video import get_frames_from_video
 
 
-video_path = str(Path.joinpath(Path(__file__).parent, './data/vdo.avi'))
+def task1_2(generate_video_frames: bool = False,
+            model_name: str = 'COCO-Detection/faster_rcnn_R_50_FPN_3x.yml',
+            model_output_path: str = str(Path.joinpath(Path(__file__).parent, './detectron_models/'))):
 
+    os.makedirs(model_output_path, exist_ok=True)
+    video_path = str(Path.joinpath(Path(__file__).parent, './data/vdo.avi'))
 
-def task1_2(generate_video_frames: bool = False):
     if generate_video_frames:
         os.makedirs(str(Path.joinpath(Path(__file__).parent, './frames')), exist_ok=True)
 
@@ -33,24 +36,26 @@ def task1_2(generate_video_frames: bool = False):
     test_idx = indices[:int(len(indices)*0.25)]
     train_idx = indices[int(len(indices)*0.25):]
 
-    detectron_train(train_idx, test_idx, gt_annotations)
+    detectron_train(train_idx=train_idx,
+                    test_idx=test_idx,
+                    annotations=gt_annotations,
+                    model_output_path=model_output_path,
+                    model_name=model_name)
 
-    detectron_inference("COCO-Detection/faster_rcnn_R_50_FPN_1x.yaml",
-                        video_path,
-                        "prueba.txt",
-                        [0],
-                        0,
-                        len(test_idx),
-                        'rgb',
-                        str(Path.joinpath(Path(__file__).parent, './results/model_final.pth')))
 
-    pred_reader = AICityChallengeAnnotationReader('prueba.txt')
+    result_path = str(Path.joinpath(Path(__file__).parent, f'./results/week3/{Path(model_name).stem}.txt'))
+
+    detectron_inference(model_name=model_name,
+                        video_path=video_path,
+                        results_path=result_path,
+                        labels=[0],
+                        start_frame=0,
+                        end_frame=10,
+                        colorspace='rgb',
+                        weight_path=f'{model_output_path}/model_final.pth')
+
+    pred_reader = AICityChallengeAnnotationReader(result_path)
     pred_annotations = pred_reader.get_annotations(classes=['car'])
-
-    gt_path = str(Path.joinpath(Path(__file__).parent, './data/s03_c010-annotation.xml'))
-
-    gt_reader = AICityChallengeAnnotationReader(gt_path)
-    gt_annotations = gt_reader.get_annotations(classes=['car'])
 
     y_true = []
     y_pred = []
@@ -62,3 +67,8 @@ def task1_2(generate_video_frames: bool = False):
     ap, prec, rec = mAP(y_true, y_pred, classes=['car'])
     print(f'Arch: Faster R-CNN, AP: {ap:.4f}, Precision: {prec:.4f}, Recall: {rec:.4f}')
 
+if __name__ == "__main__":
+    model_name = 'COCO-Detection/faster_rcnn_R_50_FPN_3x.yaml'
+
+    task1_2(generate_video_frames=False,
+            model_name=model_name)
