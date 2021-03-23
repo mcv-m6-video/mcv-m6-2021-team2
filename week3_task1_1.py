@@ -10,7 +10,7 @@ from src.video import generate_video
 from src.metrics.map import mAP
 
 def task1_1(detectron: bool = True,
-            model_name: str = 'faster_rcnn_R_50_FPN_3x',
+            model_name: str = 'COCO-Detection/faster_rcnn_R_50_FPN_3x.yml',
             result_path: str = './results/week3/s03_c010-fasterrcnn_r_50_fpn_3x.txt',
             create_video: bool = False,
             video_name: str = 'output.gif',
@@ -56,7 +56,7 @@ def task1_1(detectron: bool = True,
 
 if __name__ == "__main__":
     detectron = True
-    model_name = 'faster_rcnn_R_50_FPN_3x'
+    model_name = 'COCO-Detection/faster_rcnn_R_50_FPN_3x.yml'
     result_path = './results/week3/s03_c010-fasterrcnn_r_50_fpn_3x.txt'
 
     task1_1(detectron, model_name, result_path, True)
