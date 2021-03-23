@@ -49,14 +49,14 @@ def task1_1(detectron: bool = True,
         y_pred.append(pred_annotations.get(frame))
 
     ap, prec, rec = mAP(y_true, y_pred, classes=['car'])
-    print(f'Arch: Faster R-CNN, AP: {ap:.4f}, Precision: {prec:.4f}, Recall: {rec:.4f}')
+    print(f'Arch: {model_name}, AP: {ap:.4f}, Precision: {prec:.4f}, Recall: {rec:.4f}')
 
     if create_video:
         generate_video(video_path, video_name, pred_annotations, gt_annotations, video_title, 500, 800,)
 
 if __name__ == "__main__":
     detectron = True
-    model_name = 'COCO-Detection/faster_rcnn_R_50_FPN_3x.yml'
-    result_path = './results/week3/s03_c010-fasterrcnn_r_50_fpn_3x.txt'
+    model_name = 'COCO-Detection/retinanet_R_50_FPN_3x.yaml'
+    result_path = './results/week3/s03_c010-retinanet_r_50_fpn_3x.txt'
 
-    task1_1(detectron, model_name, result_path, True)
+    task1_1(detectron, model_name, result_path)

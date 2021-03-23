@@ -93,7 +93,6 @@ def detectron_inference(model_name: str,
         for frame_idx, frame in get_frames_from_video(video_path, colorspace, start_frame, end_frame):
             if frame is not None:
                 outputs = predictor(frame)
-                print(outputs)
 
                 torch.cuda.synchronize()
 
