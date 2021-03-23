@@ -82,6 +82,7 @@ def task2_2(det_path, gt_path, video_path, max_age, min_hits,iou_threshold, show
     # print(f'mAP: {men_average_precision:.4f}, Precision: {prec:.4f}, Recall: {rec:.4f}, IDF1: {idf1:.4f}')
     retstr = f'mAP: {men_average_precision:.4f}, Precision: {prec:.4f}, Recall: {rec:.4f}, IDF1: {idf1:.4f}'
     return retstr
+    
 
 
 if __name__ == '__main__':
