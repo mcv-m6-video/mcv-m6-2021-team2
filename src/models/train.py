@@ -61,15 +61,14 @@ def detectron_train(train_idx: List[int],
                     model_name: str,
                     results_path: str):
 
-    DatasetCatalog.register("aicity_train", lambda d='train': get_dicts(train_idx, annotations))
-    MetadataCatalog.get("aicity_train").set(thing_classes=["car"])
+    if 'aicity_train' not in MetadataCatalog:
+        DatasetCatalog.register("aicity_train", lambda d='train': get_dicts(train_idx, annotations))
+        MetadataCatalog.get("aicity_train").set(thing_classes=["car"])
 
     """
     DatasetCatalog.register("aicity_test", lambda d='test': get_dicts(test_idx, annotations))
     MetadataCatalog.get("aicity_test").set(thing_classes=["car"])
     """
-
-    balloon_metadata = MetadataCatalog.get("aicity_train")
 
     cfg = get_cfg()
     cfg.OUTPUT_DIR = model_output_path
