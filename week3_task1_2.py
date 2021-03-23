@@ -47,25 +47,29 @@ def task1_2(generate_video_frames: bool = False,
                         model_name=model_name,
                         results_path=result_path)
     if strategy == 'B':
-        result_path = str(Path.joinpath(Path(__file__).parent, f'./results/week3/{Path(model_name).stem}_B.txt'))
         kf = KFold(n_splits=4)
+        k = 0
         for train_idx, test_idx in kf.split(indices):
+            result_path = str(Path.joinpath(Path(__file__).parent, f'./results/week3/{Path(model_name).stem}_B_{k}.txt'))
             detectron_train(train_idx=train_idx,
                             test_idx=test_idx,
                             annotations=gt_annotations,
                             model_output_path=model_output_path,
                             model_name=model_name,
                             results_path=result_path)
+            k += 1
     if strategy == 'C':
-        result_path = str(Path.joinpath(Path(__file__).parent, f'./results/week3/{Path(model_name).stem}_C.txt'))
         kf = KFold(n_splits=4, shuffle=True)
+        k = 0
         for train_idx, test_idx in kf.split(indices):
+            result_path = str(Path.joinpath(Path(__file__).parent, f'./results/week3/{Path(model_name).stem}_C_{k}.txt'))
             detectron_train(train_idx=train_idx,
                             test_idx=test_idx,
                             annotations=gt_annotations,
                             model_output_path=model_output_path,
                             model_name=model_name,
                             results_path=result_path)
+            k += 1
 
     pred_reader = AICityChallengeAnnotationReader(result_path)
     pred_annotations = pred_reader.get_annotations(classes=['car'])
@@ -84,7 +88,7 @@ def task1_2(generate_video_frames: bool = False,
 if __name__ == "__main__":
     model_name = 'COCO-Detection/faster_rcnn_R_50_FPN_3x.yaml'
 
-    for strategy in ['A', 'B', 'C']:
+    for strategy in ['B', 'C']:
         task1_2(generate_video_frames=False,
                 model_name=model_name,
                 strategy=strategy)
