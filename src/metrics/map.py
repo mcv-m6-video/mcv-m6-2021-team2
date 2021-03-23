@@ -3,6 +3,7 @@ from typing import List, Tuple, Dict
 
 from src.metrics.ap import AP
 
+
 def mAP(y_true, y_pred, classes=None, sort_method=None):
     if classes is None:
         classes = np.unique([det.label for boxlist in y_true for det in boxlist])

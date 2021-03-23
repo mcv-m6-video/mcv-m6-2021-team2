@@ -8,6 +8,12 @@ from typing import NoReturn, List, Tuple
 
 from torchvision.transforms import transforms
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
+from detectron2 import model_zoo
+from detectron2.engine import DefaultPredictor
+from detectron2.config import get_cfg
+from detectron2.utils.visualizer import Visualizer
+from detectron2.data import MetadataCatalog, DatasetCatalog, build_detection_test_loader
+from detectron2.evaluation import COCOEvaluator, inference_on_dataset
 
 from src.video import get_frames_from_video
 
@@ -56,6 +62,57 @@ def remove_overlap(pred_boxes: np.array,
                 np.where(overlap > 0.70)[0])))
 
     return pred_boxes[pick], pred_labels[pick], pred_scores[pick]
+
+
+def detectron_inference(model_name: str,
+                        video_path: str,
+                        results_path: str,
+                        labels: List[int],
+                        start_frame: int = 0,
+                        end_frame: int = np.inf,
+                        colorspace: str = 'rgb',
+                        weight_path: str = None) -> NoReturn:
+
+    logging.debug(f'Running inference using: {model_name} model ...')
+
+    cfg = get_cfg()
+    cfg.merge_from_file(model_zoo.get_config_file(model_name))
+    cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.5
+    cfg.MODEL.ROI_HEADS.NMS_THRESH_TEST = 0.4
+
+    if weight_path:
+        cfg.MODEL.WEIGHTS = weight_path
+    else:
+        cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url(model_name})
+
+    cfg.OUTPUT_DIR = str(Path.joinpath(Path(__file__).parent, '../../results'))
+
+    predictor = DefaultPredictor(cfg)
+
+    with open(results_path, 'w') as result_file:
+        for frame_idx, frame in get_frames_from_video(video_path, colorspace, start_frame, end_frame):
+            if frame is not None:
+                outputs = predictor(frame)
+                print(outputs)
+
+                torch.cuda.synchronize()
+
+                pred_boxes = outputs["instances"].pred_boxes.to("cpu")
+                pred_scores = outputs["instances"].scores.to("cpu")
+                pred_labels = outputs["instances"].pred_classes.to("cpu")
+
+                preds = zip(pred_boxes, pred_scores, pred_labels)
+
+                preds = [(box.cpu().numpy(), score.item(), label.item()) for box, score, label in preds if label.item() in labels]
+
+                for box, score, label in preds:
+                    xtl = box[0]
+                    ytl = box[1]
+                    xbr = box[2]
+                    ybr = box[3]
+
+                    result_file.write(f'{frame_idx},-1,{xtl},{ytl},{xbr - xtl},{ybr - ytl},{score},-1,-1,-1\n')
+
 
 def torchvision_inference(model_name: str,
                           video_path: str,
