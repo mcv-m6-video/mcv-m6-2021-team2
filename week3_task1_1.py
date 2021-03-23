@@ -9,54 +9,55 @@ from src.readers.ai_city_reader import AICityChallengeAnnotationReader
 from src.video import generate_video
 from src.metrics.map import mAP
 
-def task1_1(detectron: bool = True,
-            model_name: str = 'faster_rcnn_R_50_FPN_3x',
-            result_path: str = './results/week3/s03_c010-fasterrcnn_r_50_fpn_3x.txt',
-            create_video: bool = False,
-            video_name: str = 'output.gif',
-            video_title: str = 'dummy'):
 
-    logging.basicConfig(format='%(asctime)s - %(message)s', level=logging.DEBUG)
-    video_path = str(Path.joinpath(Path(__file__).parent, './data/vdo.avi'))
-    result_path = str(Path.joinpath(Path(__file__).parent, result_path))
+logging.basicConfig(format='%(asctime)s - %(message)s', level=logging.DEBUG)
 
-    if detectron:
-        # Detectron inference
-        detectron_inference(model_name=model_name,
-                            video_path=video_path,
-                            results_path=result_path,
-                            labels=[2])
-    else:
-        # Torchvision inference
-        torchvision_inference(model_name=model_name,
-                            video_path=video_path,
-                            results_path=result_path,
-                            labels=[3])
+video_path = str(Path.joinpath(Path(__file__).parent, 'data\AICity_data/train\S03\c010/vdo.avi'))
+gt_path = str(Path.joinpath(Path(__file__).parent, 'data/ai_challenge_s03_c010-full_annotation.xml'))
 
-    pred_reader = AICityChallengeAnnotationReader(result_path)
-    pred_annotations = pred_reader.get_annotations(classes=['car'])
+retinanet_result_path = str(Path.joinpath(Path(__file__).parent, 's03_c010-retinanet.txt'))
+faster_rcnn_result_path = str(Path.joinpath(Path(__file__).parent, 's03_c010-faster_rcnn.txt'))
 
-    gt_path = str(Path.joinpath(Path(__file__).parent, './data/s03_c010-annotation.xml'))
 
-    gt_reader = AICityChallengeAnnotationReader(gt_path)
-    gt_annotations = gt_reader.get_annotations(classes=['car'])
+torchvision_inference(model_name='fasterrcnn',
+                      video_path=video_path,
+                      results_path=faster_rcnn_result_path,
+                      labels=[3])
 
-    y_true = []
-    y_pred = []
-    for frame in pred_annotations.keys():
+torchvision_inference(model_name='retinanet',
+                      video_path=video_path,
+                      results_path=retinanet_result_path,
+                      labels=[3])
 
-        y_true.append(gt_annotations.get(frame, []))
-        y_pred.append(pred_annotations.get(frame))
+pred_reader = AICityChallengeAnnotationReader(faster_rcnn_result_path)
+pred_fasterrcnn_annotations = pred_reader.get_annotations(classes=['car'])
 
-    ap, prec, rec = mAP(y_true, y_pred, classes=['car'])
-    print(f'Arch: Faster R-CNN, AP: {ap:.4f}, Precision: {prec:.4f}, Recall: {rec:.4f}')
+pred_reader = AICityChallengeAnnotationReader(retinanet_result_path)
+pred_retinanet_annotations = pred_reader.get_annotations(classes=['car'])
 
-    if create_video:
-        generate_video(video_path, video_name, pred_annotations, gt_annotations, video_title, 500, 800,)
+gt_reader = AICityChallengeAnnotationReader(gt_path)
+gt_annotations = gt_reader.get_annotations(classes=['car'])
 
-if __name__ == "__main__":
-    detectron = True
-    model_name = 'faster_rcnn_R_50_FPN_3x'
-    result_path = './results/week3/s03_c010-fasterrcnn_r_50_fpn_3x.txt'
+# Faster R-CNN
 
-    task1_1(detectron, model_name, result_path, True)
+y_true = []
+y_pred = []
+for frame in pred_fasterrcnn_annotations.keys():
+
+    y_true.append(gt_annotations.get(frame, []))
+    y_pred.append(pred_fasterrcnn_annotations.get(frame))
+
+ap, prec, rec = mAP(y_true, y_pred, classes=['car'])
+print(f'Arch: Faster R-CNN, AP: {ap:.4f}, Precision: {prec:.4f}, Recall: {rec:.4f}')
+
+# Retina Net
+
+y_true = []
+y_pred = []
+for frame in pred_retinanet_annotations.keys():
+
+    y_true.append(gt_annotations.get(frame, []))
+    y_pred.append(pred_retinanet_annotations.get(frame))
+
+ap, prec, rec = mAP(y_true, y_pred, classes=['car'])
+print(f'Arch: Retina net, AP: {ap:.4f}, Precision: {prec:.4f}, Recall: {rec:.4f}')
