@@ -2,6 +2,9 @@ from collections import defaultdict
 
 import numpy as np
 import cv2
+import imageio
+
+from pathlib import Path
 
 from src.sort import Sort
 from src.metrics.map import mAP
@@ -13,6 +16,7 @@ import warnings
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
+RESULTS_DIR = Path('Results/week3')
 
 class VideoContextManager:
 
@@ -28,9 +32,10 @@ class VideoContextManager:
         self.cap.release()
 
 
-def show_tracks(cap, frame, tracks, colors, detections):
+def show_tracks(cap, frame, tracks, colors, detections, writer):
     cap.set(cv2.CAP_PROP_POS_FRAMES, frame)
     ret, img = cap.read()
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     for d in detections:
         np.random.seed(d.id)
         color = colors.get(d.id, tuple(np.random.randint(0, 256, 3).tolist()))
@@ -43,13 +48,16 @@ def show_tracks(cap, frame, tracks, colors, detections):
             center = int(tl[0] + (width / 2)), int(tl[1] + (height / 2))
             cv2.circle(img, center, 5, color, -1)
         cv2.rectangle(img, tl, br, color, thickness=5)
-
+        cv2.putText(img, str(d.id), (int(bbox[0]), int(bbox[1])), cv2.FONT_HERSHEY_COMPLEX, 1, (0, 0, 0), 2)
+    
+    writer.append_data(cv2.resize(img, (480, 360)))
     cv2.imshow('image', cv2.resize(img, (900, 600)))
     if cv2.waitKey(1) & 0xFF == ord('q'):
         return
 
 
-def task2_2(det_path, gt_path, video_path, max_age, min_hits,iou_threshold, show):
+def task2_2(det_path, name, gt_path, video_path, max_age, min_hits,iou_threshold, show):
+    writer = imageio.get_writer(str(RESULTS_DIR / f'task_2_2_{name.lower()}.gif'), fps=10)
     with VideoContextManager(video_path=video_path) as cap:
         gt = AICityChallengeAnnotationReader(path=gt_path).get_annotations(classes=['car'])
         dets = AICityChallengeAnnotationReader(path=det_path).get_annotations(classes=['car'])
@@ -66,7 +74,7 @@ def task2_2(det_path, gt_path, video_path, max_age, min_hits,iou_threshold, show
             for d in new_detections:
                 tracks[d.id].append(d.bbox)
             if show:
-                show_tracks(cap, frame, tracks, colors, new_detections)
+                show_tracks(cap, frame, tracks, colors, new_detections, writer)
 
             gt_frame_detections = gt.get(frame, [])
 
@@ -76,6 +84,7 @@ def task2_2(det_path, gt_path, video_path, max_age, min_hits,iou_threshold, show
             y_pred.append(new_detections)
 
     cv2.destroyAllWindows()
+    writer.close()
 
     men_average_precision, prec, rec = mAP(y_true, y_pred, classes=['car'])
     idf1 = idf1_computation.get_computation()
@@ -86,21 +95,23 @@ def task2_2(det_path, gt_path, video_path, max_age, min_hits,iou_threshold, show
 
 
 if __name__ == '__main__':
-    paths= ["s03_c010-faster_rcnn.txt",
-    "s03_c010-mask_rcnn.txt",
-    "s03_c010-retinanet.txt"]
+    """
+    paths= ["data/AICity_data/train/S03/c010/det/det_mask_rcnn.txt",
+    "data/AICity_data/train/S03/c010/det/s03_c010-fasterrcnn_r_50_fpn_3x.txt",
+    "data/AICity_data/train/S03/c010/det/s03_c010-retinanet_r_50_fpn_3x.txt"]
+    """
+    paths = ['data/AICity_data/train/S03/c010/det/faster_rcnn_R_50_FPN_3x_C_3.txt']
     models = [
         "Faster RCNN",
-        "Mask RCNN",
-        "RetinaNet"
     ]
     for i, path in enumerate(paths):
         result = task2_2(det_path=path,
+                name=models[i],
                 gt_path='data/ai_challenge_s03_c010-full_annotation.xml',
                 video_path='data/AICity_data/train/S03/c010/vdo.avi',
                 max_age=1,
                 min_hits=3,
                 iou_threshold = 0.3,
-                show=False)
+                show=True)
         print(f"{models[i]}: {result}")
         
