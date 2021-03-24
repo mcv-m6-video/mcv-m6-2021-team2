@@ -59,39 +59,45 @@ def detectron_train(train_idx: List[int],
                     annotations: OrderedDict,
                     model_output_path: str,
                     model_name: str,
-                    results_path: str):
+                    results_path: str,
+                    resume: bool):
 
-    if 'aicity_train' not in MetadataCatalog:
-        DatasetCatalog.register("aicity_train", lambda d='train': get_dicts(train_idx, annotations))
-        MetadataCatalog.get("aicity_train").set(thing_classes=["car"])
 
-    """
+    if 'aicity_train' in DatasetCatalog.list():
+        DatasetCatalog.remove('aicity_train')
+    if 'aicity_test' in DatasetCatalog.list():
+        DatasetCatalog.remove('aicity_test')
+
+    DatasetCatalog.register("aicity_train", lambda d='train': get_dicts(train_idx, annotations))
+    MetadataCatalog.get("aicity_train").set(thing_classes=["car"])
+
     DatasetCatalog.register("aicity_test", lambda d='test': get_dicts(test_idx, annotations))
     MetadataCatalog.get("aicity_test").set(thing_classes=["car"])
-    """
 
     cfg = get_cfg()
     cfg.OUTPUT_DIR = model_output_path
     cfg.merge_from_file(model_zoo.get_config_file(model_name))
     cfg.DATASETS.TRAIN = ("aicity_train",)
-    cfg.DATASETS.TEST = ()
-    cfg.DATALOADER.NUM_WORKERS = 16
+    cfg.DATASETS.TEST = ('aicity_test',)
+    cfg.DATALOADER.NUM_WORKERS = 8
     cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url(model_name)  # Let training initialize from model zoo
-    cfg.SOLVER.IMS_PER_BATCH = 16
+    cfg.SOLVER.IMS_PER_BATCH = 8
     cfg.SOLVER.BASE_LR = 0.00025  # pick a good LR
-    cfg.SOLVER.MAX_ITER = 300    # 300 iterations seems good enough for this toy dataset; you will need to train longer for a practical dataset
+    cfg.SOLVER.MAX_ITER = 500    # 300 iterations seems good enough for this toy dataset; you will need to train longer for a practical dataset
     cfg.SOLVER.STEPS = []        # do not decay learning rate
-    cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE = 256   # faster, and good enough for this toy dataset (default: 512)
+    cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE = 512   # faster, and good enough for this toy dataset (default: 512)
     cfg.MODEL.ROI_HEADS.NUM_CLASSES = 1  # only has one class (ballon). (see https://detectron2.readthedocs.io/tutorials/datasets.html#update-the-config-for-new-datasets)
-    # NOTE: this config means the number of classes, but a few popular unofficial tutorials incorrect uses num_classes+1 here.
+    # NOTE: this config means the number of classes, but a few popular unofficial tutorials incorrect uses num_classes+1 here
+    #cfg.MODEL.RETINANET.NUM_CLASSES = 1
 
     os.makedirs(cfg.OUTPUT_DIR, exist_ok=True)
-    trainer = WheatTrainer(cfg)
-    trainer.resume_or_load(resume=False)
+    trainer = DefaultTrainer(cfg)
+    trainer.resume_or_load(resume=resume)
     trainer.train()
 
     cfg.MODEL.WEIGHTS = os.path.join(cfg.OUTPUT_DIR, "model_final.pth")  # path to the model we just trained
     cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.5   # set a custom testing threshold
+
 
     predictor = DefaultPredictor(cfg)
 
@@ -119,6 +125,7 @@ def detectron_train(train_idx: List[int],
 
                 result_file.write(f'{frame_idx},-1,{xtl},{ytl},{xbr - xtl},{ybr - ytl},{score},-1,-1,-1\n')
 
+    os.remove(os.path.join(cfg.OUTPUT_DIR, "model_final.pth"))
 
 def torchvision_train(model_name: str,
                       video_path: str,
