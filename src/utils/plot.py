@@ -75,39 +75,6 @@ def plot_optical_flow(gray_image, flow_image, sampling_step=10, size=(10, 10), t
     plt.show()
     plt.close()
 
-def generate_video(video_path, frames, frame_ious, gt_bb, dd_bb, title='', save_root=None, size=(10,5)):
-    cap = cv2.VideoCapture(video_path)
-    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-
-    fig, ax = plt.subplots(2, 1, figsize=size)
-    image = ax[0].imshow(np.zeros((height, width)))
-    line, = ax[1].plot(frames, frame_ious)
-    artists = [image, line]
-
-    def update(i):
-        cap.set(cv2.CAP_PROP_POS_FRAMES, frames[i])
-        ret, img = cap.read()
-        for bb in gt_bb[frames[i]]:
-            cv2.rectangle(img, (int(bb.xtl), int(bb.ytl)), (int(bb.xbr), int(bb.ybr)), (0, 255, 0), 4)
-        for bb in dd_bb[frames[i]]:
-            cv2.rectangle(img, (int(bb.xtl), int(bb.ytl)), (int(bb.xbr), int(bb.ybr)), (0, 0, 255), 4)
-        artists[0].set_data(img[:, :, ::-1])
-        artists[1].set_data(frames[:i + 1], frame_ious[:i + 1])
-        return artists
-
-    ani = animation.FuncAnimation(fig, update, len(frames), interval=2, blit=True)
-
-    ax[0].set_xticks([])
-    ax[0].set_yticks([])
-    ax[1].set_ylim(0, 1)
-    ax[1].set_xlabel('#frame')
-    ax[1].set_ylabel('mean IoU')
-    fig.suptitle(title)
-    ani.save(Path(f'{save_root}/{title.lower()}.gif', writer='imagemagick'))
-    plt.show()
-    plt.close()
-
 def generate_video_from_frames(output_path: str, frames: List[np.array]) -> NoReturn:
     frames = frames.astype(np.uint8)
     imageio.mimsave(output_path, frames)

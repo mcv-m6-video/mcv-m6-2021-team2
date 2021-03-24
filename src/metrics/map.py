@@ -1,30 +1,25 @@
 import numpy as np
 from typing import List, Tuple, Dict
 
-from src.annotation import Annotation
 from src.metrics.ap import AP
 
-def mAP(pred_annons: List[Annotation],
-        gt_annons: List[Annotation],
-        classes: List[str],
-        score_available: bool = False,
-        N: int = 10,
-        th: float = 0.5) -> Tuple[float, float, float, Dict[str, Dict[int, float]]]:
 
-    precisions = []
-    recalls = []
+def mAP(y_true, y_pred, classes=None, sort_method=None):
+    if classes is None:
+        classes = np.unique([det.label for boxlist in y_true for det in boxlist])
+
+    precs = []
+    recs = []
     aps = []
-    mious_per_class = {}
-
-    for k in classes:
-        class_k_pred_annons = [annon for annon in pred_annons if annon.label == k]
-        class_k_gt_annons = [annon for annon in gt_annons if annon.label == k]
-
-        ap, precision, recall, mious_per_frame = AP(class_k_pred_annons, class_k_gt_annons, score_available, N, th)
-
-        precisions.append(precision)
-        recalls.append(recall)
+    for cls in classes:
+        y_true_cls = [[det for det in boxlist if det.label == cls] for boxlist in y_true]
+        y_pred_cls = [[det for det in boxlist if det.label == cls] for boxlist in y_pred]
+        ap, prec, rec = AP(y_true_cls, y_pred_cls, sort_method)
+        precs.append(prec)
+        recs.append(rec)
         aps.append(ap)
-        mious_per_class[k] = mious_per_frame
+    prec = np.mean(precs) if aps else 0
+    rec = np.mean(recs) if aps else 0
+    map = np.mean(aps) if aps else 0
 
-    return np.mean(aps), np.mean(precisions), np.mean(recalls), mious_per_class
+    return map, prec, rec
