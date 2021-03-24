@@ -34,3 +34,15 @@ To do so, different tasks are developed:
 * Estimate the background with adaptative strategy
 * Compare both approaches and also the State of the Art
 * Use color within the background estimation
+
+## Week 3 
+
+This week, we use the pre-trained models RetinaNet and Faster R-CNN on the AiCityChallenge video and evaluate their performance.
+
+Tasks:
+* Use pre-trained RetinaNet/Faster R-CNN to detect cars in the image sequence.      🆗
+* Train the previous models using our image sequence while fine-tuning the models.  🆗
+* Use different validation strategies to evaluate the performance of the models.    🆗
+* Track distinct, different objects in the sequence, assigning them a unique ID.    🆗
+* Use different tracking methods like Kalman filters and maximum overlap.           🆗
+* Evaluate the performance of the object trackers using IDF1 score.                 🆗
