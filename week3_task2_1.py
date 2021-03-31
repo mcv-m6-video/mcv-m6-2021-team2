@@ -68,4 +68,4 @@ def task_2_1(prediction_path, efficient=True):
 
 if __name__ == '__main__':
     RESULTS_DIR.mkdir(exist_ok=True, parents=True)
-    task_2_1(Path('data/AICity_data/train/S03/c010/det/retinanet_R_50_FPN_3x_B_0.txt'), efficient=True)
+    task_2_1(Path('data/AICity_data/train/S03/c010/det/retinanet_R_50_FPN_3x_C_1.txt'), efficient=True)

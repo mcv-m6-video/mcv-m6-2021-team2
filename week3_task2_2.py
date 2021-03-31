@@ -100,7 +100,7 @@ if __name__ == '__main__':
     "data/AICity_data/train/S03/c010/det/s03_c010-fasterrcnn_r_50_fpn_3x.txt",
     "data/AICity_data/train/S03/c010/det/s03_c010-retinanet_r_50_fpn_3x.txt"]
     """
-    paths = ['data/AICity_data/train/S03/c010/det/faster_rcnn_R_50_FPN_3x_C_3.txt']
+    paths = ['data/AICity_data/train/S03/c010/det/retinanet_R_50_FPN_3x_C_1.txt']
     models = [
         "Faster RCNN",
     ]
