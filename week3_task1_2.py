@@ -45,50 +45,111 @@ def task1_2(generate_video_frames: bool = False,
                         annotations=gt_annotations,
                         model_output_path=model_output_path,
                         model_name=model_name,
-                        results_path=result_path)
+                        results_path=result_path,
+                        resume=False)
+
+        pred_reader = AICityChallengeAnnotationReader(result_path)
+        pred_annotations = pred_reader.get_annotations(classes=['car'])
+
+        y_true = []
+        y_pred = []
+        for frame in pred_annotations.keys():
+
+            y_true.append(gt_annotations.get(frame, []))
+            y_pred.append(pred_annotations.get(frame))
+
+        ap, prec, rec = mAP(y_true, y_pred, classes=['car'])
+        print(f'Strategy: {strategy} Arch: {model_name} AP: {ap:.4f}, Precision: {prec:.4f}, Recall: {rec:.4f}')
     if strategy == 'B':
         kf = KFold(n_splits=4)
         k = 0
-        for train_idx, test_idx in kf.split(indices):
+        for test_idx, train_idx in kf.split(indices):
             result_path = str(Path.joinpath(Path(__file__).parent, f'./results/week3/{Path(model_name).stem}_B_{k}.txt'))
+
             detectron_train(train_idx=train_idx,
                             test_idx=test_idx,
                             annotations=gt_annotations,
                             model_output_path=model_output_path,
                             model_name=model_name,
-                            results_path=result_path)
+                            results_path=result_path,
+                            resume=False)
+
+            pred_reader = AICityChallengeAnnotationReader(result_path)
+            pred_annotations = pred_reader.get_annotations(classes=['car'])
+
+            y_true = []
+            y_pred = []
+            for frame in pred_annotations.keys():
+
+                y_true.append(gt_annotations.get(frame, []))
+                y_pred.append(pred_annotations.get(frame))
+
+            ap, prec, rec = mAP(y_true, y_pred, classes=['car'])
+            print(f'Strategy: {strategy} Arch: {model_name} AP: {ap:.4f}, Precision: {prec:.4f}, Recall: {rec:.4f}')
             k += 1
+
     if strategy == 'C':
         kf = KFold(n_splits=4, shuffle=True)
         k = 0
-        for train_idx, test_idx in kf.split(indices):
+        for test_idx, train_idx in kf.split(indices):
             result_path = str(Path.joinpath(Path(__file__).parent, f'./results/week3/{Path(model_name).stem}_C_{k}.txt'))
+
             detectron_train(train_idx=train_idx,
                             test_idx=test_idx,
                             annotations=gt_annotations,
                             model_output_path=model_output_path,
                             model_name=model_name,
-                            results_path=result_path)
+                            results_path=result_path,
+                            resume=False)
+
             k += 1
 
-    pred_reader = AICityChallengeAnnotationReader(result_path)
-    pred_annotations = pred_reader.get_annotations(classes=['car'])
+            pred_reader = AICityChallengeAnnotationReader(result_path)
+            pred_annotations = pred_reader.get_annotations(classes=['car'])
 
-    y_true = []
-    y_pred = []
-    for frame in pred_annotations.keys():
+            y_true = []
+            y_pred = []
+            for frame in pred_annotations.keys():
 
-        y_true.append(gt_annotations.get(frame, []))
-        y_pred.append(pred_annotations.get(frame))
+                y_true.append(gt_annotations.get(frame, []))
+                y_pred.append(pred_annotations.get(frame))
 
-    ap, prec, rec = mAP(y_true, y_pred, classes=['car'])
+            ap, prec, rec = mAP(y_true, y_pred, classes=['car'])
 
-    print(f'Strategy: {strategy} Arch: {model_name} AP: {ap:.4f}, Precision: {prec:.4f}, Recall: {rec:.4f}')
+            print(f'Strategy: {strategy} Arch: {model_name} AP: {ap:.4f}, Precision: {prec:.4f}, Recall: {rec:.4f}')
 
 if __name__ == "__main__":
-    model_name = 'COCO-Detection/faster_rcnn_R_50_FPN_3x.yaml'
+    model_name = 'COCO-Detection/retinanet_R_50_FPN_3x.yaml'
 
-    for strategy in ['B', 'C']:
+    for strategy in ['A', 'B']:
         task1_2(generate_video_frames=False,
                 model_name=model_name,
                 strategy=strategy)
+
+
+    """
+    gt_path = str(Path.joinpath(Path(__file__).parent, './data/s03_c010-annotation.xml'))
+
+    gt_reader = AICityChallengeAnnotationReader(gt_path)
+    gt_annotations = gt_reader.get_annotations(classes=['car'])
+
+    aps = []
+    for k in range(0,4):
+        result_path = str(Path.joinpath(Path(__file__).parent, f'./results/week3/retinanet_R_50_FPN_3x_C_{k}.txt'))
+        pred_reader = AICityChallengeAnnotationReader(result_path)
+        pred_annotations = pred_reader.get_annotations(classes=['car'])
+
+        y_true = []
+        y_pred = []
+        for frame in pred_annotations.keys():
+
+            y_true.append(gt_annotations.get(frame, []))
+            y_pred.append(pred_annotations.get(frame))
+
+        ap, prec, rec = mAP(y_true, y_pred, classes=['car'])
+
+        print(f'AP: {ap:.4f}, Precision: {prec:.4f}, Recall: {rec:.4f}')
+
+        aps.append(ap)
+    print(np.mean(aps))
+    """
