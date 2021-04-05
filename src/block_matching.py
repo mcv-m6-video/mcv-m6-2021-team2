@@ -156,20 +156,15 @@ def block_matching(current_frame: np.array,
             target_area = target[ytl:ybr, xtl:xbr]
             target_height, target_width = target_area.shape
 
-            u = 0
-            v = 0
-
             if algorithm == 'es':
                 point = es(block_size, target_area, source_block)
-                u = point[1] - (x_source - xtl)
-                v = point[0] - (y_source - ytl)
             elif algorithm == 'tss':
                 point = tss(block_size, target_area, source_block)
-                u = point[1] - (x_source - xtl)
-                v = point[0] - (y_source - ytl)
             else:
                 raise NotImplementedError(f'The algorithm: {algorithm} is not implemented yet.')
 
+            u = point[1] - (x_source - xtl)
+            v = point[0] - (y_source - ytl)
             result[y_source:y_source+block_size, x_source:x_source+block_size] = [u, v]
 
     return result
