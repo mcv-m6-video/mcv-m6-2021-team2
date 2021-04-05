@@ -19,3 +19,4 @@ numba==0.53.0
 Pillow==8.1.2
 scikit_learn==0.24.1
 skimage==0.0
+vidstab==1.7.3
