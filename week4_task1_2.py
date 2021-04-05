@@ -5,6 +5,7 @@ import numpy as np
 from pathlib import Path
 from src.pyflow import pyflow
 from src.hornschunk import HornSchunck
+from src.lk_flow import LK_flow
 from src.utils.flow_reader import read_flow_img
 from src.utils.plot import plot_optical_flow, plot_opt_flow_hsv, plot_img
 from src.metrics.optical_flow import evaluate_flow, compute_msen, compute_pepn
@@ -36,6 +37,8 @@ def task_1_2(algorithm='pyflow'):
         u, v = HornSchunck(img_0, img_1, alpha=0.012, Niter=8)
         toc = time.time()
         flow = np.dstack((u, v))
+    elif algorithm == 'lk':
+        flow, tic, toc = LK_flow(img_0, img_1)
     elif algorithm == 'farneback':
         tic = time.time()
         flow = cv2.calcOpticalFlowFarneback(img_0, img_1, None, 0.5, 3, 15, 3, 5, 1.2, 0)
@@ -56,4 +59,4 @@ def task_1_2(algorithm='pyflow'):
     print('Done.')
 
 if __name__ == "__main__":
-    task_1_2(algorithm='farneback')
+    task_1_2(algorithm='lk')

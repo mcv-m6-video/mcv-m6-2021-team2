@@ -6,6 +6,7 @@ import numpy as np
 from src.metrics.distance import calc_distance
 from pathlib import Path
 
+
 def es(block_size: int,
        target_area: np.array,
        source_block: np.array,
