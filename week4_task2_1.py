@@ -6,10 +6,15 @@ import numpy as np
 from pathlib import Path
 from tqdm import trange
 from src.pyflow import pyflow
+from src.block_matching import block_matching
 
 RESULTS_DIR = Path('results/week4')
 WIDTH = 600
 HEIGHT = 350
+
+FORWARD = True
+BLOCK_SIZE = 8
+SEARCH_AREA = 8*3
 
 def task_2_1(algorithm='block_matching', method='average'):
     cap = cv2.VideoCapture('data/test_stab.mp4')
@@ -36,7 +41,7 @@ def task_2_1(algorithm='block_matching', method='average'):
 
 def compute_optical_flow(algorithm, previous_frame, current_frame):
     if algorithm == 'block_matching':
-        raise NotImplementedError('Here the code corresponding to computing the optical flow by block matcing should be implemented')
+        flow = block_matching(current_frame, previous_frame, FORWARD, BLOCK_SIZE, SEARCH_AREA)
     elif algorithm == 'pyflow':
         u, v, im2W = pyflow.coarse2fine_flow(
             previous_frame, current_frame, alpha=0.012, ratio=0.75, minWidth=20, nOuterFPIterations=7,
@@ -62,3 +67,6 @@ def apply_motion(current_frame, flow, momentum, method):
         [0, 1, -y_t]
     ], dtype=np.float32)
     return cv2.warpAffine(current_frame, H, (WIDTH, HEIGHT))
+
+if __name__ == "__main__":
+    task_2_1(algorithm='block_matching')
