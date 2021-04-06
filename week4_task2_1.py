@@ -7,19 +7,21 @@ from pathlib import Path
 from tqdm import trange
 from src.pyflow import pyflow
 from src.block_matching import block_matching
+from src.test_bm import block_matching_flow
 from src.utils.plot import plot_img
 
 RESULTS_DIR = Path('results/week4')
 
 FORWARD = True
-BLOCK_SIZE = 8
-SEARCH_AREA = 8*3
+BLOCK_SIZE = 32
+SEARCH_AREA = 32*3
 ALGORITHM = 'tss'
+DISTANCE = 'mse'
 
 
 def task_2_1(algorithm='block_matching', method='average'):
     cap = cv2.VideoCapture('data/test_stab.mp4')
-    n_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT)*0.30)
+    n_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT)*0.60)
     WIDTH = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     HEIGHT = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     fps = int(cap.get(cv2.CAP_PROP_FPS))
@@ -33,28 +35,32 @@ def task_2_1(algorithm='block_matching', method='average'):
         ok, frame = cap.read()
         if not ok:
             raise ValueError(f'The frame {k} could not be readed.')
-        current_frame = cv2.resize(frame, (WIDTH, HEIGHT), interpolation=cv2.INTER_AREA)
+        current_frame = frame
         if k == 0:
             frame_stabilized = current_frame
         else:
             flow = compute_optical_flow(algorithm, previous_frame, current_frame)
             frame_stabilized, momentum = apply_motion(current_frame, flow, method, momentum, WIDTH, HEIGHT)
         previous_frame = current_frame
-
-        out_video.append_data(cv2.cvtColor(frame_stabilized, cv2.COLOR_BGR2RGB))
+        video_frame = cv2.resize(frame_stabilized, (int(WIDTH/4), int(HEIGHT/4)), interpolation=cv2.INTER_AREA)
+        out_video.append_data(cv2.cvtColor(video_frame, cv2.COLOR_BGR2RGB))
 
 
 def compute_optical_flow(algorithm, previous_frame, current_frame):
     current_bw = cv2.cvtColor(current_frame, cv2.COLOR_RGB2GRAY)
     previous_bw = cv2.cvtColor(previous_frame, cv2.COLOR_RGB2GRAY)
     if algorithm == 'block_matching':
-        flow = block_matching(current_bw, previous_bw, FORWARD, BLOCK_SIZE, SEARCH_AREA, algorithm=ALGORITHM)
-    elif algorithm == 'pyflow':
-        u, v, im2W = pyflow.coarse2fine_flow(
-            previous_frame, current_frame, alpha=0.012, ratio=0.75, minWidth=20, nOuterFPIterations=7,
-            nInnerFPIterations=1, nSORIterations=30, colType=1
+        flow = block_matching_flow(
+            previous_bw,
+            current_bw,
+            block_size=BLOCK_SIZE,
+            search_area=SEARCH_AREA,
+            motion_type=FORWARD,
+            metric=DISTANCE,
+            algorithm=ALGORITHM
         )
-        flow = np.dstack((u, v))
+    elif algorithm == 'farneback':
+        flow = cv2.calcOpticalFlowFarneback(previous_bw, current_bw, None, 0.5, 3, 15, 3, 5, 1.2, 0)
     else:
         raise ValueError('This option is not available.')
     return flow
@@ -78,4 +84,4 @@ def apply_motion(current_frame, flow, method, momentum, width, height):
     return cv2.warpAffine(current_frame, H, (width, height)), momentum
 
 if __name__ == "__main__":
-    task_2_1(algorithm='block_matching', method='average')
+    task_2_1(algorithm='farneback', method='average')

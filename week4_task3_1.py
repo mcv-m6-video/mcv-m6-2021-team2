@@ -36,6 +36,7 @@ def task_3_1(prediction_path):
     block_size = 8
     search_area = 8*3
     algorithm = 'tss'
+    distance = 'mse'
 
     # Start Video
     writer = imageio.get_writer(str(RESULTS_DIR / f'task_2_1_{prediction_path.stem}.gif'), fps=10)
@@ -50,7 +51,7 @@ def task_3_1(prediction_path):
                 if frame_idx-1 == 0:
                     optical_flow = None
                 else:
-                    flow = block_matching(current_frame, previous_frame, forward, block_size, search_area, algorithm=algorithm)
+                    flow = block_matching(current_frame, previous_frame, forward, block_size, search_area, distance_method=distance, algorithm=algorithm)
                     optical_flow = np.zeros((HEIGHT, WIDTH, 2), dtype=np.float32)
                     for k, det in enumerate(current_pred_dt):
                         optical_flow[int(det.ytl), int(det.xtl)] = flow[2*k]
@@ -86,4 +87,4 @@ def task_3_1(prediction_path):
 
 if __name__ == '__main__':
     RESULTS_DIR.mkdir(exist_ok=True, parents=True)
-    task_3_1(Path('data/AICity_data/train/S03/c010/det/retinanet_R_50_FPN_3x_B_0.txt'))
+    task_3_1(Path('data/AICity_data/train/S03/c010/det/det_mask_rcnn.txt'))
