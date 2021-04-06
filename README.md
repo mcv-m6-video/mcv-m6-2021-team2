@@ -46,3 +46,26 @@ Tasks:
 * Track distinct, different objects in the sequence, assigning them a unique ID.    🆗
 * Use different tracking methods like Kalman filters and maximum overlap.           🆗
 * Evaluate the performance of the object trackers using IDF1 score.                 🆗
+
+## Week 4
+
+This week we estimate the optical flow given a previous and a current frame.
+
+The estimation is done using Block Matching with different algorithms:
+* Exhaustive Search
+* Three Step Search
+
+We also try different off-the-shelf methods to estimate the optical flow
+* PyFlow
+* Lucas Kanade
+* Horn Schunk
+* Farneback
+
+Using the estimation we try to stabilize a video and also observe if by using optical flow we can improve the traking done in teh previous week (week3)
+
+The task where:
+* Use different parameteres of Block Matching and find the best ones to estimate Optical Flow  🆗
+* Try Off-The-Shelf optical flow and comapre between them and also between Block Matching 🆗
+* Use the optical flow to stabilize a video with a lot of motion 🆗
+* Try different algorithms to stabilize the same video 🆗
+* Use the estimation of optical flow in order to observe if we improve the tracking 🆗
