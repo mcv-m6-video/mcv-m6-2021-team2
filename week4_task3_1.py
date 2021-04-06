@@ -11,12 +11,12 @@ from src.tracking import MaxOverlapTrackerWithOpticalFlow
 from src.readers.ai_city_reader import AICityChallengeAnnotationReader
 
 
-RESULTS_DIR = Path('Results/week3')
+RESULTS_DIR = Path('Results/week4')
 VIDEO_PATH = Path('data/AICity_data/train/S03/c010/vdo.avi')
 WIDTH = 600
 HEIGHT = 350
 
-def task_2_1(prediction_path, efficient=True):
+def task_3_1(prediction_path):
     # Read groundtruth xml detections
     gt_reader = AICityChallengeAnnotationReader(Path('data/ai_challenge_s03_c010-full_annotation.xml'))
     detection_reader = AICityChallengeAnnotationReader(prediction_path)
@@ -35,6 +35,7 @@ def task_2_1(prediction_path, efficient=True):
     forward = True
     block_size = 8
     search_area = 8*3
+    algorithm = 'tss'
 
     # Start Video
     writer = imageio.get_writer(str(RESULTS_DIR / f'task_2_1_{prediction_path.stem}.gif'), fps=10)
@@ -49,7 +50,7 @@ def task_2_1(prediction_path, efficient=True):
                 if frame_idx-1 == 0:
                     optical_flow = None
                 else:
-                    flow = block_matching(current_frame, previous_frame, forward, block_size, search_area)
+                    flow = block_matching(current_frame, previous_frame, forward, block_size, search_area, algorithm=algorithm)
                     optical_flow = np.zeros((HEIGHT, WIDTH, 2), dtype=np.float32)
                     for k, det in enumerate(current_pred_dt):
                         optical_flow[int(det.ytl), int(det.xtl)] = flow[2*k]
@@ -85,4 +86,4 @@ def task_2_1(prediction_path, efficient=True):
 
 if __name__ == '__main__':
     RESULTS_DIR.mkdir(exist_ok=True, parents=True)
-    task_2_1(Path('data/AICity_data/train/S03/c010/det/retinanet_R_50_FPN_3x_B_0.txt'), efficient=True)
+    task_3_1(Path('data/AICity_data/train/S03/c010/det/retinanet_R_50_FPN_3x_B_0.txt'))

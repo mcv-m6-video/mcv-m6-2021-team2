@@ -140,7 +140,6 @@ def block_matching(current_frame: np.array,
     else:
         source = current_frame
         target = previous_frame
-
     source_height, source_width = source.shape
 
     result = np.zeros((source_height, source_width, 2))

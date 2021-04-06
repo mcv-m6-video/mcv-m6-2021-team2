@@ -28,7 +28,8 @@ def plot_img(image, size=(10, 10), cmap=None, title='', save_root=None):
     plt.imshow(image, cmap=cmap)
     plt.title(title)
     plt.axis('off')
-    plt.savefig(Path(f'{save_root}/{title.lower()}.png'))
+    if save_root:
+        plt.savefig(Path(f'{save_root}/{title.lower()}.png'))
     plt.show()
     plt.close()
 
