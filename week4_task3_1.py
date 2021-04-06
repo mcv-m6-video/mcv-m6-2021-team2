@@ -53,7 +53,6 @@ def task_3_1(prediction_path):
                 optical_flow = block_matching_flow(img_prev=previous_frame, img_next=current_frame, motion_type=forward,
                                                    block_size=block_size, search_area=search_area,
                                                    algorithm=algorithm, metric=distance)
-
             # Compute tracks from the current frame
             tracks, tracks_on_frame = tracker.track_by_max_overlap(tracks, current_pred_dt,
                                                                    optical_flow=optical_flow)
