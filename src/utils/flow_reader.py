@@ -10,7 +10,6 @@ def read_flow_img(path: str) -> np.ndarray:
     channel denotes if a valid ground truth optical flow value exists for that
     pixel (1 if true, 0 otherwise)
     """
-
     im = cv2.imread(path, cv2.IMREAD_UNCHANGED).astype(np.double)
 
     # (u,v) flow vector

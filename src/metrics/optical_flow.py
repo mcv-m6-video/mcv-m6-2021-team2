@@ -24,6 +24,14 @@ def compute_pepn(err: np.ndarray, n_pixels: int, th: int) -> float:
     return (np.sum(err > th) / n_pixels) * 100
 
 
+def evaluate_flow(flow_gt, flow):
+    err = np.sqrt(np.sum((flow_gt[..., :2] - flow) ** 2, axis=2))
+    noc = flow_gt[..., 2].astype(bool)
+    msen = np.mean(err[noc] ** 2)
+    pepn = np.sum(err[noc] > 3) / err[noc].size
+    return msen, pepn
+
+
 def compute_magnitude(flow_image, dilate=True):
     if len(flow_image.shape) > 2:
         magnitude, angle = cv2.cartToPolar(flow_image[:, :, 0], flow_image[:, :, 1])
