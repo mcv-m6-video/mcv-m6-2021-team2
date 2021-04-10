@@ -1,17 +1,12 @@
 from typing import List, Tuple, NoReturn, OrderedDict
-
 from pathlib import Path
-
 import matplotlib.pyplot as plt
-import matplotlib.animation as animation
 from matplotlib.animation import FuncAnimation
 import matplotlib.patches as patches
-from pygifsicle import optimize
 from tqdm import tqdm
-import logging
 import numpy as np
-import imageio
 import cv2
+import os
 
 def get_frames_from_video(video_path: str,
                           start_frame: int = 0,
@@ -62,7 +57,6 @@ def generate_video(video_path: str,
 
     cap = cv2.VideoCapture(video_path)
     frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-    logging.getLogger('matplotlib.font_manager').disabled = True
 
     if start_frame < 0:
         raise ValueError(f"Start frame ({start_frame}) should be greater than 0.")
@@ -70,8 +64,6 @@ def generate_video(video_path: str,
         end_frame = frame_count
     elif end_frame > frame_count:
         raise ValueError(f"End frame ({end_frame}) is greater than {frame_count} which is the number of video frames.")
-
-    logging.debug(f'Processing video from frames: {start_frame} to {end_frame} ...')
 
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -83,6 +75,8 @@ def generate_video(video_path: str,
     frames_index = list(range(start_frame, end_frame, 1))
 
     def update(i):
+        print(f'Processing frame {frames_index[i] + 1}/{end_frame} ...')
+
         cap.set(cv2.CAP_PROP_POS_FRAMES, frames_index[i])
 
         ret, img = cap.read()
@@ -106,63 +100,6 @@ def generate_video(video_path: str,
     ax.legend(handles=[patches.Patch(color="green", label="GT"), patches.Patch(color="red", label="Pred")])
 
     fig.suptitle(title)
-    ani.save(output_path, writer='imagemagick')
+    ani.save(output_path, writer='pillow')
 
     cap.release()
-
-
-def generate_model(video_path: str,
-                   perctatge_use_frames: float,
-                   grayscale: bool = True) -> Tuple[np.array, np.array]:
-
-    video_frames, frame_width, frame_height = get_frames_from_video(video_path)
-
-    if perctatge_use_frames < 0.0 or perctatge_use_frames > 1.0:
-        raise ValueError("The percentatge use of frames should be [0,1].")
-
-    num_frames_to_use = int(len(video_frames)*perctatge_use_frames)
-
-    mean_model_background = np.zeros((frame_height, frame_width))
-    variance_model_background = np.zeros((frame_height, frame_width))
-
-    if num_frames_to_use > 0:
-        mean_model_background = np.mean(video_frames[:num_frames_to_use], axis=0)
-        variance_model_background = np.std(video_frames[:num_frames_to_use], axis=0)
-
-    return mean_model_background, variance_model_background
-
-def get_multi_model(video_path: str,
-                   perctatge_use_frames: float,
-                   colorspace: str = 'rgb') -> Tuple[np.array, np.array]:
-    video_frames, frame_width, frame_height = get_frames_from_video(video_path, False, colorspace=colorspace)
-
-    if perctatge_use_frames < 0.0 or perctatge_use_frames > 1.0:
-        raise ValueError("The percentatge use of frames should be [0,1].")
-
-    num_frames_to_use = int(len(video_frames)*perctatge_use_frames)
-
-    mean_model_background = np.zeros((frame_height, frame_width, 3))
-    variance_model_background = np.zeros((frame_height, frame_width, 3))
-
-    if num_frames_to_use > 0:
-        mean_model_background = np.mean(video_frames[:num_frames_to_use], axis=0)
-        variance_model_background = np.std(video_frames[:num_frames_to_use], axis=0)
-
-    return mean_model_background, variance_model_background
-
-
-def generate_video_from_frames(output_path: str,
-                               scale: float,
-                               frames: List[Tuple[int, np.array]]) -> NoReturn:
-
-    dim = (int(frames[-1][1].shape[1] * scale), int(frames[-1][1].shape[0] * scale))
-
-    resized_frames = []
-    for _, frame in frames:
-        frame = frame.astype('uint8')
-        resized_frames.append(
-            cv2.resize(frame, dim, interpolation=cv2.INTER_AREA)
-        )
-
-    imageio.mimsave(output_path, resized_frames)
-    optimize(output_path)
