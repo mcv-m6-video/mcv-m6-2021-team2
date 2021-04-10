@@ -7,13 +7,13 @@ import matplotlib.animation as animation
 from matplotlib.animation import FuncAnimation
 import matplotlib.patches as patches
 from pygifsicle import optimize
+from tqdm import tqdm
 import logging
 import numpy as np
 import imageio
 import cv2
 
 def get_frames_from_video(video_path: str,
-                          colorspace: str = 'rgb',
                           start_frame: int = 0,
                           end_frame: int = np.inf) -> Tuple[int, np.array]:
 
@@ -30,32 +30,12 @@ def get_frames_from_video(video_path: str,
     elif end_frame > frame_count:
         raise ValueError(f"End frame ({end_frame}) is greater than {frame_count} which is the number of video frames.")
 
-    logging.debug(f'Processing video from frames: {start_frame} to {end_frame} ...')
-    for frame_idx in range(start_frame, end_frame):
+    for frame_idx in tqdm(range(start_frame, end_frame, 1)):
         cap.set(cv2.CAP_PROP_POS_FRAMES, frame_idx)
         has_frames, frame = cap.read()
 
-        logging.debug(f'Frame: {frame_idx+1}/{end_frame}.')
-
         if has_frames:
-            if colorspace == 'gray':
-                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            elif colorspace == 'rgb':
-                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            elif colorspace == 'hsv':
-                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-            elif colorspace == 'lab':
-                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2Lab)
-            else:
-                raise NotImplementedError(f'The colorspace {colorspace} is not supported.')
-
-            yield (frame_idx+1, frame)
-            frame_idx += 1
-        else:
-            logging.error(f'The video doesn\'t have the frame {frame_idx+1}.')
-
-    cap.release()
-    yield (0, None)
+            yield (frame_idx + 1, frame)
 
 def get_video_lengh(video_path: str) -> int:
     if not Path(video_path).exists:
