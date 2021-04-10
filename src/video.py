@@ -49,45 +49,6 @@ def get_video_lengh(video_path: str) -> int:
 
     return num_frames
 
-
-def get_frame_from_video(video_path: str,
-                         frame: int,
-                         colorspace: str = 'rgb') -> np.array:
-
-    if not Path(video_path).exists:
-        raise FileNotFoundError(f'Video path not found: {video_path}.')
-
-    cap = cv2.VideoCapture(video_path)
-    frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-
-    if frame < 0:
-        raise ValueError(f"Frame ({frame}) should be greater than 0.")
-    elif frame > frame_count:
-        raise ValueError(f"Frame ({frame}) is greater than {frame_count} which is the number of video frames.")
-
-    logging.debug(f'Processing video frame: {frame} ...')
-
-    cap.set(cv2.CAP_PROP_POS_FRAMES, frame)
-
-    has_frames, frame = cap.read()
-
-    if has_frames:
-        if colorspace == 'gray':
-            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        elif colorspace == 'rgb':
-            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        elif colorspace == 'hsv':
-            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-        elif colorspace == 'lab':
-            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2Lab)
-        else:
-            raise NotImplementedError(f'The colorspace {colorspace} is not supported.')
-
-    cap.release()
-
-    return frame
-
-
 def generate_video(video_path: str,
                    output_path: str,
                    predictions: OrderedDict,
