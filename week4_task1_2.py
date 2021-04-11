@@ -8,7 +8,7 @@ from src.hornschunk import HornSchunck
 from src.lk_flow import LK_flow
 from src.utils.flow_reader import read_flow_img
 from src.utils.plot import plot_optical_flow, plot_opt_flow_hsv, plot_img
-from src.metrics.optical_flow import evaluate_flow, compute_msen, compute_pepn
+from src.metrics.optical_flow import evaluate_flow
 
 RESULTS_DIR = Path('results/week4')
 DATA_PATH = Path('data/optical_flows')
@@ -59,4 +59,4 @@ def task_1_2(algorithm='pyflow'):
     print('Done.')
 
 if __name__ == "__main__":
-    task_1_2(algorithm='lk')
+    task_1_2(algorithm='pyflow')

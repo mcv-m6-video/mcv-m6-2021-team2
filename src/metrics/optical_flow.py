@@ -21,14 +21,12 @@ def compute_msen(flow_gt: np.ndarray, flow_pred: np.ndarray, th: int = 3):
 
 def compute_pepn(err: np.ndarray, n_pixels: int, th: int) -> float:
     """Percentage of Erroneous Pixels in Non-occluded areas"""
-    return (np.sum(err > th) / n_pixels) * 100
+    return (np.sum(err > th) / n_pixels)
 
 
-def evaluate_flow(flow_gt, flow):
-    err = np.sqrt(np.sum((flow_gt[..., :2] - flow) ** 2, axis=2))
-    noc = flow_gt[..., 2].astype(bool)
-    msen = np.mean(err[noc] ** 2)
-    pepn = np.sum(err[noc] > 3) / err[noc].size
+def evaluate_flow(flow_gt, flow_pred):
+    sqrt_error, sen, msen = compute_msen(flow_gt, flow_pred)
+    pepn = compute_pepn(sen, len(sen), 3)
     return msen, pepn
 
 

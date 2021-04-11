@@ -33,7 +33,7 @@ def task_2_1(prediction_path, efficient=True):
     writer = imageio.get_writer(str(RESULTS_DIR / f'task_2_1_{prediction_path.stem}-short-{eff}.gif'), fps=10)
     pred_idx = 0
     # For each frame, compute the detected tracks by maximum overlaping
-    for frame_idx, frame in get_frames_from_video(str(VIDEO_PATH), colorspace='rgb', start_frame=0):
+    for frame_idx, frame in get_frames_from_video(str(VIDEO_PATH), start_frame=0):
         # Get detections from current frame
         if frame is not None:
             current_gt_det = gt_detections[frame_idx-1]
@@ -64,8 +64,9 @@ def task_2_1(prediction_path, efficient=True):
     # Tracking done, compute now metrics and print results
     writer.close()
     ap, prec, rec = mAP(y_gt, y_pred, classes=['car'], sort_method='score')
-    print(f'AP: {ap:.4f}, Precision: {prec:.4f}, Recall: {rec:.4f}, IDF1: {metrics.get_computation()}')
+    print(f'AP: {ap:.4f}, Precision: {prec:.4f}, Recall: {rec:.4f}')
+    print(f'MOTMETRICS:\n {metrics.get_computation()}')
 
 if __name__ == '__main__':
     RESULTS_DIR.mkdir(exist_ok=True, parents=True)
-    task_2_1(Path('data/AICity_data/train/S03/c010/det/retinanet_R_50_FPN_3x_B_0.txt'), efficient=True)
+    task_2_1(Path('data/AICity_data/train/S03/c010/det/det_mask_rcnn.txt'), efficient=True)

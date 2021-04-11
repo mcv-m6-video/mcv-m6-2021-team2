@@ -42,7 +42,7 @@ def task_3_1(prediction_path):
     writer = imageio.get_writer(str(RESULTS_DIR / f'task_3_1_{prediction_path.stem}.gif'), fps=10)
     previous_frame = None
     # For each frame, compute the detected tracks by maximum overlapping
-    for frame_idx, current_frame in get_frames_from_video(str(VIDEO_PATH), colorspace='rgb', start_frame=0):
+    for frame_idx, current_frame in get_frames_from_video(str(VIDEO_PATH), start_frame=0):
         # Get detections from current frame
         if current_frame is not None:
             current_gt_det = gt_detections[frame_idx - 1]
@@ -82,7 +82,7 @@ def task_3_1(prediction_path):
     # Tracking done, compute now metrics and print results
     writer.close()
     ap, prec, rec = mAP(y_gt, y_pred, classes=['car'], sort_method='score')
-    print(f'AP: {ap:.4f}, Precision: {prec:.4f}, Recall: {rec:.4f}, IDF1: {metrics.get_computation()}')
+    print(f'AP: {ap:.4f}, Precision: {prec:.4f}, Recall: {rec:.4f}, MOTMETRICS: {metrics.get_computation()}')
 
 
 if __name__ == '__main__':
