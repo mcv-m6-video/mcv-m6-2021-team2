@@ -7,6 +7,7 @@ import numpy as np
 import xmltodict
 
 from src.detection import Detection
+from src.track import Track
 
 
 def parse_annotations_from_xml(path: str) -> List[Detection]:
@@ -84,6 +85,14 @@ def group_by_id(detections: List[Detection]):
     for det in detections:
         grouped[det.id].append(det)
     return OrderedDict(sorted(grouped.items()))
+
+
+def resolve_tracks_from_detections(detections):
+    grouped = group_by_id(detections)
+    tracks = {}
+    for identifier in grouped.keys():
+        tracks[identifier] = Track(identifier, grouped[identifier])
+    return tracks
 
 
 class AICityChallengeAnnotationReader:

@@ -1,7 +1,8 @@
 from copy import deepcopy
 from src.track import Track
 from src.metrics.iou import iou_single_boxes
-
+from sklearn.metrics.pairwise import pairwise_distances
+import numpy as np
 
 class MaxOverlapTracker():
     def __init__(self):
@@ -43,7 +44,6 @@ class MaxOverlapTracker():
             return best_match
         else:
             return None
-
 
 class MaxOverlapTrackerEfficient():
     def __init__(self):
@@ -144,3 +144,16 @@ class MaxOverlapTrackerWithOpticalFlow():
             return best_match
         else:
             return None
+
+
+def filter_moving_tracks(all_tracks, distance_threshold, min_recurrent_tracking):
+    moving_tracks = []
+    for track in all_tracks:
+        if len(track.tracking) > min_recurrent_tracking:
+            centroids_of_detections = np.array([[(d.xtl+d.xbr)/2, (d.ytl+d.ybr)/2] for d in track.tracking])
+            dists = pairwise_distances(centroids_of_detections, centroids_of_detections, metric='euclidean')
+
+            if np.max(dists) > distance_threshold:
+                moving_tracks.append(track)
+
+    return moving_tracks
