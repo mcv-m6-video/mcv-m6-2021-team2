@@ -164,7 +164,7 @@ def task_1_max_overlap_with_flow(sequences, cameras):
                 if previous_frame is None:
                     optical_flow = None
                 else:
-                    if FLOW_METHOD == 'fabernack':
+                    if FLOW_METHOD == 'farneback':
                         img_0 = cv2.cvtColor(previous_frame, cv2.COLOR_BGR2GRAY)
                         img_1 = cv2.cvtColor(previous_frame, cv2.COLOR_BGR2GRAY)
                         optical_flow = cv2.calcOpticalFlowFarneback(img_0, img_1, None, 0.5, 3, 15, 3, 5, 1.2, 0)
