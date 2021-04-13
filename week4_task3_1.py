@@ -7,7 +7,7 @@ from src.metrics.mot_metrics import IDF1Computation
 from src.metrics.map import mAP
 from src.test_bm import block_matching_flow
 from src.video import get_frames_from_video
-from src.tracking import MaxOverlapTrackerWithOpticalFlow
+from src.tracking import MaxOverlapTracker
 from src.readers.ai_city_reader import AICityChallengeAnnotationReader
 
 RESULTS_DIR = Path('Results/week4')
@@ -25,7 +25,7 @@ def task_3_1(prediction_path):
     pred_detections = detection_reader.get_annotations(classes=['car'])
 
     # Initialize Variables
-    tracker = MaxOverlapTrackerWithOpticalFlow()
+    tracker = MaxOverlapTracker()
     tracks = []
     y_gt = []
     y_pred = []
