@@ -164,8 +164,10 @@ def task_1_max_overlap_with_flow(sequences, cameras):
                 if previous_frame is None:
                     optical_flow = None
                 else:
-                    if FLOW_METHOD == 'pyflow':
-                        pass
+                    if FLOW_METHOD == 'fabernack':
+                        img_0 = cv2.cvtColor(previous_frame, cv2.COLOR_BGR2GRAY)
+                        img_1 = cv2.cvtColor(previous_frame, cv2.COLOR_BGR2GRAY)
+                        optical_flow = cv2.calcOpticalFlowFarneback(img_0, img_1, None, 0.5, 3, 15, 3, 5, 1.2, 0)
                     elif FLOW_METHOD == 'block_matching':
                         optical_flow = block_matching_flow(
                             img_prev=previous_frame, img_next=current_frame, motion_type=forward,
@@ -174,6 +176,7 @@ def task_1_max_overlap_with_flow(sequences, cameras):
                         )
                     else:
                         raise ValueError(f'This {FLOW_METHOD} is not available')
+                previous_frame = current_frame.copy()
                 current_detections = dets.get(frame_idx-1, [])
                 all_tracks, tracks_on_frame = tracker.track_by_max_overlap(all_tracks, current_detections, optical_flow=optical_flow)
                 y_true.append(gt.get(frame_idx-1, []))
