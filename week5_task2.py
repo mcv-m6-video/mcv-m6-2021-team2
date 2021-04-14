@@ -8,8 +8,10 @@ import pickle
 
 from collections import defaultdict
 
-from src.readers.ai_city_reader import parse_annotations, group_by_id, group_by_frame
-from sklearn.cluster import DBSCAN
+from src.readers.ai_city_reader import parse_annotations, group_by_id, group_by_frame, parse_annotations_from_txt
+from sklearn.metrics.pairwise import pairwise_distances
+from src.metrics.mot_metrics import IDF1Computation
+import networkx as nx
 
 
 def is_static(track, thresh=50):
@@ -96,11 +98,18 @@ class Encoder:
         return np.random.random((len(batch), self.length))
 
 
+class HistogramEncoder(Encoder):
+
+    def get_embeddings(self, batch):
+        # exctract histogram
+        return np.random.random((len(batch), self.length))
+
+
 def get_encoder():
-    return Encoder()
+    return HistogramEncoder()
 
 
-def task2(sequence: str, metric: str = 'euclidean'):
+def get_correspondances(sequence: str, metric: str = 'euclidean', thresh=20):
     seq_path = str(Path(f'train/{sequence}'))
     cams = sorted(os.listdir(seq_path))
     tracks_by_cam = {
@@ -133,19 +142,32 @@ def task2(sequence: str, metric: str = 'euclidean'):
     # at this stage we have `embeddings` mapped by pairs (cam, id): That means, that for a camera and id pair we only
     # have a single embedding
     print(f' embeddings {embeddings.keys()}')
-    print(f' embedding {embeddings[("c001", 10)]}')
-    clustering = DBSCAN(eps=0.3, min_samples=2, metric=metric)
-    clustering.fit(np.stack(list(embeddings.values())))
+    G = nx.Graph()
+    for cam1 in cams:
+        for id1, track1 in tracks_by_cam[cam1].items():
+            candidates = []
 
-    print(f' embeddings.keys() {embeddings.keys()}, {len(embeddings.keys())}')
-    print(f' clustering.labels_ {clustering.labels_}, {len(clustering.labels_)}')
+            for cam2 in cams:
+                if cam2 == cam1:
+                    continue
+                for id2, track2 in tracks_by_cam[cam2].items():
+                    candidates.append((cam2, id2))
 
-    groups = defaultdict(list)
-    for id, label in zip(embeddings.keys(), clustering.labels_):
-        groups[label].append(id)
-    groups = list(groups.values())
+            if len(candidates) > 0:
+                dist = pairwise_distances([embeddings[(cam1, id1)]],
+                                          [embeddings[(cam2, id2)] for cam2, id2 in candidates],
+                                          metric).flatten()
+                ind = dist.argmin()
+                if dist[ind] < thresh:
+                    cam2, id2 = candidates[ind]
+                    G.add_edge((cam1, id1), (cam2, id2))
 
-    print(f' groups {groups}')
+    groups = []
+    while G.number_of_nodes() > 0:
+        cliques = nx.find_cliques(G)
+        maximal = max(cliques, key=len)
+        groups.append(maximal)
+        G.remove_nodes_from(maximal)
 
     results = defaultdict(list)
     for global_id, group in enumerate(groups):
@@ -155,90 +177,43 @@ def task2(sequence: str, metric: str = 'euclidean'):
                 det.id = global_id
             results[cam].append(track)
 
-    # print(f' results {results}')
     return results
 
 
-def get_embeddings(frames_cam_ids_dicts, cap, encoder, save_path=None):
-    embeddings = defaultdict(dict)
-    for frame in tqdm(frames_cam_ids_dicts, desc=f'Computing embeddings for frame', leave=True):
-        for cam in tqdm(frames_cam_ids_dicts[frame], desc=f'Computing embeddings for cam', leave=False):
-            # process camera detections frame by frame
-            detections = frames_cam_ids_dicts[frame][cam]
-            embeddings[frame][cam] = {}
+def write_results(tracks_by_cam, path):
+    for cam, tracks in tracks_by_cam.items():
+        lines = []
+        for track in tracks:
+            for det in track:
+                lines.append((det.frame, det.id, int(det.xtl), int(det.ytl), int(det.width), int(det.height),
+                              det.score, '-1', '-1', '-1'))
+        lines = sorted(lines, key=lambda x: x[0])
 
-            cap[cam].set(cv2.CAP_PROP_POS_FRAMES, frame)
-            _, img = cap[cam].read()
-            batch = []
-            ids = []
-            for det in detections:
-                crop = img[int(det.ytl):int(det.ybr), int(det.xtl):int(det.xbr)]
-                if crop.size > 0:
-                    batch.append(crop)
-                    ids.append(det.id)
-
-            embds = encoder.get_embeddings(batch)
-            for id, embd in zip(ids, embds):
-                embeddings[frame][cam][id] = embd
-
-    if save_path is not None:
-        os.makedirs(os.path.dirname(save_path), exist_ok=True)
-        with open(save_path, 'wb') as f:
-            pickle.dump(embeddings, f)
-
-    return embeddings
+        filename = os.path.join(path, cam, 'results.txt')
+        os.makedirs(os.path.dirname(filename), exist_ok=True)
+        with open(filename, 'w') as file:
+            for line in lines:
+                file.write(','.join(list(map(str, line))) + '\n')
 
 
-def task_5_2(sequence: str, metric: str = 'euclidean'):
-    seq_path = str(Path(f'train/{sequence}'))
-    cams = sorted(os.listdir(seq_path))
+def task2(sequence: str, metric: str = 'euclidean', thresh=20, seq='S03'):
+    # obtain reid results
+    seq_path = str(Path(f'train/{seq}'))
+    path_results = f'./results/week5/{metric}_{thresh}'
+    results = get_correspondances(sequence, metric, thresh)
+    write_results(results, path=path_results)
 
-    frames_by_cam = {
-        cam: group_by_frame(parse_annotations(os.path.join(seq_path, cam, 'mtsc', 'mtsc_tc_mask_rcnn.txt')))
-        for cam in cams
-    }
-    cap = {
-        cam: cv2.VideoCapture(os.path.join(seq_path, cam, 'vdo.avi'))
-        for cam in cams
-    }
-
-    frames_cam_ids_dicts = defaultdict(dict)
-
-    for cam in frames_by_cam:
-        for frame in frames_by_cam[cam]:
-            frames_cam_ids_dicts[frame][cam] = frames_by_cam[cam][frame]
-
-    """
-          {
-              frame_id: 
-                  {
-                    'cam1': [dets]
-                    'cam2': [dets]
-                    'cam3': [dets]
-                  }
-              ...
-          }
-    """
-
-    print(f' frames_cam_ids_dicts {frames_cam_ids_dicts.keys()}')
-    print(f' frames_cam_ids_dicts[1] {frames_cam_ids_dicts[1].keys()}')
-    print(f' frames_cam_ids_dicts[1]["c001"] {frames_cam_ids_dicts[1]["c001"]}')
-
-    encoder = get_encoder()
-
-    embeddings_file = os.path.join('./embeddings', f'dummy_{sequence}.pkl')
-    if os.path.exists(embeddings_file):
-        with open(embeddings_file, 'rb') as f:
-            embeddings = pickle.load(f)
-    else:
-        embeddings = get_embeddings(frames_cam_ids_dicts, cap, encoder, save_path=embeddings_file)
-
-    print(f' embeddings {embeddings.keys()}')
-    print(f' embeddings[1] {embeddings[1].keys()}')
-    print(f' embeddings[1]["c001"] {embeddings[1]["c001"].keys()}')
-
-    # Apply min graph algorithm for every frame
+    # compute metrics
+    idf1_computation = IDF1Computation()
+    for cam in os.listdir(seq_path):
+        dets_true = group_by_frame(parse_annotations_from_txt(os.path.join(seq_path, cam, 'gt', 'gt.txt')))
+        dets_pred = group_by_frame(parse_annotations_from_txt(os.path.join(path_results, cam, 'results.txt')))
+        for frame in dets_true.keys():
+            y_true = dets_true.get(frame, [])
+            y_pred = dets_pred.get(frame, [])
+            idf1_computation.add_frame_detections(y_true, y_pred)
+    print(f'Metrics: {idf1_computation.get_computation()}')
 
 
 if __name__ == '__main__':
-    task_5_2('S01')
+    task2('S03')
