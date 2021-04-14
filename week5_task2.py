@@ -11,6 +11,8 @@ from collections import defaultdict
 from src.readers.ai_city_reader import parse_annotations, group_by_id, group_by_frame, parse_annotations_from_txt
 from sklearn.metrics.pairwise import pairwise_distances
 from src.metrics.mot_metrics import IDF1Computation
+from src.video import get_frames_from_video
+
 import networkx as nx
 
 
@@ -89,7 +91,7 @@ def get_track_embeddings(tracks_by_cam, cap, encoder, batch_size=512, save_path=
     return embeddings
 
 
-class Encoder:
+class MetricLearningEncoder:
 
     def __init__(self):
         self.length = 512
@@ -98,18 +100,55 @@ class Encoder:
         return np.random.random((len(batch), self.length))
 
 
-class HistogramEncoder(Encoder):
+class HistogramEncoder:
+
+    def get_embeddings(self, batch):
+        # exctract histogram
+        histograms = []
+        for image in batch:
+            histogram = []
+            for channel in [0, 1, 2]:
+                histogram_channel = np.transpose(cv2.calcHist([image], [channel], None, [64], [0, 256]))
+                histogram.append(histogram_channel)
+            histograms.append(np.hstack(histogram))
+
+        ret = np.vstack(histograms)
+        assert ret.shape == (len(batch), 64 * 3)
+        return ret
+
+
+class RandomEncoder:
+    def __init__(self):
+        self.length = 512
 
     def get_embeddings(self, batch):
         # exctract histogram
         return np.random.random((len(batch), self.length))
 
 
-def get_encoder():
-    return HistogramEncoder()
+def get_encoder(method):
+    if method == 'histogram':
+        return HistogramEncoder()
+    elif method == 'dummy':
+        return RandomEncoder()
+    elif method == 'metric':
+        return MetricLearningEncoder()
 
 
-def get_correspondances(sequence: str, metric: str = 'euclidean', thresh=20):
+def get_distances(metric, embed_cam1, embed_cams2):
+    if metric == 'euclidean':
+        dist = pairwise_distances([embed_cam1], embed_cams2, metric).flatten()
+    elif metric == 'histogram_correl':
+        dist = []
+        for embed_cam2 in embed_cams2:
+            d = cv2.compareHist(embed_cam1, embed_cam2, cv2.HISTCMP_CORREL)
+            dist.append(d)
+        dist = np.array(dist)
+
+    return dist
+
+
+def get_correspondances(sequence: str, metric: str = 'euclidean', method: str = 'dummy', thresh=300):
     seq_path = str(Path(f'train/{sequence}'))
     cams = sorted(os.listdir(seq_path))
     tracks_by_cam = {
@@ -127,21 +166,18 @@ def get_correspondances(sequence: str, metric: str = 'euclidean', thresh=20):
 
     # tracks_by_cam have a set of tracks (Detections for individual ids for each camera)
 
-    # print(f' tracks_by_cam {tracks_by_cam}')
-    encoder = get_encoder()
+    encoder = get_encoder(method)
 
-    embeddings_file = os.path.join('./embeddings', f'dummy_{sequence}.pkl')
+    embeddings_file = os.path.join('./embeddings', f'{method}_{sequence}.pkl')
     if os.path.exists(embeddings_file):
         with open(embeddings_file, 'rb') as f:
             embeddings = pickle.load(f)
     else:
         embeddings = get_track_embeddings(tracks_by_cam, cap, encoder, save_path=embeddings_file)
-    # print(f' embeddings-1 {embeddings}')
 
     embeddings = {(cam, id): embd for cam in embeddings for id, embd in embeddings[cam].items()}
     # at this stage we have `embeddings` mapped by pairs (cam, id): That means, that for a camera and id pair we only
     # have a single embedding
-    print(f' embeddings {embeddings.keys()}')
     G = nx.Graph()
     for cam1 in cams:
         for id1, track1 in tracks_by_cam[cam1].items():
@@ -154,9 +190,12 @@ def get_correspondances(sequence: str, metric: str = 'euclidean', thresh=20):
                     candidates.append((cam2, id2))
 
             if len(candidates) > 0:
-                dist = pairwise_distances([embeddings[(cam1, id1)]],
-                                          [embeddings[(cam2, id2)] for cam2, id2 in candidates],
-                                          metric).flatten()
+                dist = get_distances(metric, embeddings[(cam1, id1)],
+                                     [embeddings[(cam2, id2)] for cam2, id2 in candidates])
+                # dist = pairwise_distances([embeddings[(cam1, id1)]],
+                #                           [embeddings[(cam2, id2)] for cam2, id2 in candidates],
+                #                           metric).flatten()
+
                 ind = dist.argmin()
                 if dist[ind] < thresh:
                     cam2, id2 = candidates[ind]
@@ -180,8 +219,8 @@ def get_correspondances(sequence: str, metric: str = 'euclidean', thresh=20):
     return results
 
 
-def write_results(tracks_by_cam, path):
-    for cam, tracks in tracks_by_cam.items():
+def write_results(results, path):
+    for cam, tracks in results.items():
         lines = []
         for track in tracks:
             for det in track:
@@ -196,11 +235,11 @@ def write_results(tracks_by_cam, path):
                 file.write(','.join(list(map(str, line))) + '\n')
 
 
-def task2(sequence: str, metric: str = 'euclidean', thresh=20, seq='S03'):
+def task2(sequence: str, metric: str = 'euclidean', method: str = 'dummy', thresh=500):
     # obtain reid results
-    seq_path = str(Path(f'train/{seq}'))
-    path_results = f'./results/week5/{metric}_{thresh}'
-    results = get_correspondances(sequence, metric, thresh)
+    seq_path = str(Path(f'train/{sequence}'))
+    path_results = f'./results/week5/{method}_{metric}_{thresh}'
+    results = get_correspondances(sequence=sequence, method=method, metric=metric, thresh=thresh)
     write_results(results, path=path_results)
 
     # compute metrics
@@ -214,6 +253,27 @@ def task2(sequence: str, metric: str = 'euclidean', thresh=20, seq='S03'):
             idf1_computation.add_frame_detections(y_true, y_pred)
     print(f'Metrics: {idf1_computation.get_computation()}')
 
+    cams = sorted(os.listdir(seq_path))
+    import imageio
+    colors = {}
+    for cam in cams:
+        writer = imageio.get_writer(
+            os.path.join(path_results, f'{cam}.gif'), fps=10)
+        video_path = os.path.join(seq_path, cam, 'vdo.avi')
+        detections = group_by_frame(parse_annotations_from_txt(os.path.join(path_results, cam, 'results.txt')))
+        for frame_idx, current_frame in get_frames_from_video(str(video_path), start_frame=600, end_frame=800):
+            for det in detections.get(frame_idx - 1, []):
+                if det.id not in colors:
+                    import random
+                    color = (int(random.random() * 256),
+                             int(random.random() * 256),
+                             int(random.random() * 256))
+                    colors[det.id] = color
+                cv2.rectangle(current_frame, (int(det.xtl), int(det.ytl)), (int(det.xbr), int(det.ybr)), colors[det.id],
+                              6)
+            current_frame = cv2.cvtColor(current_frame, cv2.COLOR_BGR2RGB)
+            writer.append_data(cv2.resize(current_frame, (600, 350)))
+
 
 if __name__ == '__main__':
-    task2('S03')
+    task2(sequence='S03', method='histogram', metric='histogram_correl')
