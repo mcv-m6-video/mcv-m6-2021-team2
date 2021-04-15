@@ -53,10 +53,11 @@ def get_dicts(frames_idx: List[int],
 
         for det in annotations[frame_idx]:
             bbox = det.bbox
-            cv2.rectangle(img, (int(bbox[0]), int(bbox[1])), (int(bbox[2]), int(bbox[3])), (0, 255, 0), 2)
+            cv2.rectangle(img, (int(bbox[0]), int(bbox[1])), (int(bbox[2]), int(+bbox[3])), (0, 255, 0), 2)
         cv2.imwrite(f'gt_frame_{frame_idx}.png', img)
         exit(1)
         """
+
         dataset_dicts.append(record)
 
     return dataset_dicts
@@ -66,11 +67,11 @@ def train(model_name: str,
           results_path: str,
           train_idx: List[int],
           test_idx: List[int],
-          val_idx: List[int],
           annotations: OrderedDict,
           frames_path: str,
           lr: float = 0.0025,
           max_it: int = 500,
+          img_per_batch: int = 16,
           batch_size: int = 512,
           num_freeze: int = 1) -> NoReturn:
 
@@ -79,15 +80,13 @@ def train(model_name: str,
 
     os.makedirs(results_path, exist_ok=True)
 
-    for catalog_type in ['train', 'test', 'val']:
+    for catalog_type in ['train', 'test']:
         catalog = f'aic19_{catalog_type}'
         if catalog in DatasetCatalog.list():
             DatasetCatalog.remove(catalog)
 
         if catalog_type == 'train':
             DatasetCatalog.register(catalog, lambda d=catalog_type: get_dicts(train_idx, annotations, frames_path))
-        elif catalog_type == 'val':
-            DatasetCatalog.register(catalog, lambda d=catalog_type: get_dicts(val_idx, annotations, frames_path))
         else:
             DatasetCatalog.register(catalog, lambda d=catalog_type: get_dicts(test_idx, annotations, frames_path))
 
@@ -98,19 +97,20 @@ def train(model_name: str,
     cfg.merge_from_file(model_zoo.get_config_file(model_name))
 
     cfg.DATASETS.TRAIN = (f'aic19_train',)
-    cfg.DATASETS.TEST = (f'aic19_test',)
+    cfg.DATASETS.TEST = ()
 
     cfg.DATALOADER.NUM_WORKERS = 8
 
     cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url(model_name)
     cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.5
-    #cfg.MODEL.BACKBONE.FREEZE_AT = num_freeze
+    cfg.MODEL.BACKBONE.FREEZE_AT = num_freeze
     cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE = batch_size
     cfg.MODEL.ROI_HEADS.NUM_CLASSES = 1
 
-    cfg.SOLVER.IMS_PER_BATCH = 10
+    cfg.SOLVER.IMS_PER_BATCH = 16
     cfg.SOLVER.BASE_LR = lr
     cfg.SOLVER.MAX_ITER = max_it
+    cfg.SOLVER.STEPS = []
 
     trainer = DefaultTrainer(cfg)
     trainer.resume_or_load(resume=False)
@@ -118,6 +118,6 @@ def train(model_name: str,
 
     cfg.MODEL.WEIGHTS = os.path.join(cfg.OUTPUT_DIR, 'model_final.pth')
 
-    evaluator = COCOEvaluator('aic19_val', cfg, False, output_dir=results_path)
-    val_loader = build_detection_test_loader(cfg, "aic19_val")
+    evaluator = COCOEvaluator('aic19_test', cfg, False, output_dir=results_path)
+    val_loader = build_detection_test_loader(cfg, "aic19_test")
     print(inference_on_dataset(trainer.model, val_loader, evaluator))

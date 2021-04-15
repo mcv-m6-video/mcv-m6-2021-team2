@@ -14,6 +14,7 @@ class Detection:
     cam: str = None
     score: float = None
     parked: bool = None
+    frame_path: str = None
 
     @property
     def bbox(self):
