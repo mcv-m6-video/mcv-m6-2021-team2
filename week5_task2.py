@@ -102,18 +102,25 @@ class MetricLearningEncoder:
 
 class HistogramEncoder:
 
+    def __init__(self, num_bins):
+        self.histogram_bins = num_bins
+
     def get_embeddings(self, batch):
         # exctract histogram
         histograms = []
         for image in batch:
             histogram = []
             for channel in [0, 1, 2]:
-                histogram_channel = np.transpose(cv2.calcHist([image], [channel], None, [64], [0, 256]))
+                histogram_channel = np.transpose(
+                    cv2.calcHist([image], [channel], None, [self.histogram_bins], [0, 256]))
                 histogram.append(histogram_channel)
-            histograms.append(np.hstack(histogram))
+
+            histogram = np.hstack(histogram)
+            norm = np.linalg.norm(histogram)
+            histogram = histogram / norm
+            histograms.append(histogram)
 
         ret = np.vstack(histograms)
-        assert ret.shape == (len(batch), 64 * 3)
         return ret
 
 
@@ -126,9 +133,9 @@ class RandomEncoder:
         return np.random.random((len(batch), self.length))
 
 
-def get_encoder(method):
+def get_encoder(method, num_bins):
     if method == 'histogram':
-        return HistogramEncoder()
+        return HistogramEncoder(num_bins)
     elif method == 'dummy':
         return RandomEncoder()
     elif method == 'metric':
@@ -148,7 +155,8 @@ def get_distances(metric, embed_cam1, embed_cams2):
     return dist
 
 
-def get_correspondances(sequence: str, metric: str = 'euclidean', method: str = 'dummy', thresh=300):
+def get_correspondances(sequence: str, metric: str = 'euclidean', method: str = 'dummy', num_bins: int = 32,
+                        thresh=20.):
     seq_path = str(Path(f'train/{sequence}'))
     cams = sorted(os.listdir(seq_path))
     tracks_by_cam = {
@@ -166,9 +174,9 @@ def get_correspondances(sequence: str, metric: str = 'euclidean', method: str = 
 
     # tracks_by_cam have a set of tracks (Detections for individual ids for each camera)
 
-    encoder = get_encoder(method)
+    encoder = get_encoder(method, num_bins)
 
-    embeddings_file = os.path.join('./embeddings', f'{method}_{sequence}.pkl')
+    embeddings_file = os.path.join('./embeddings', f'{method}_{num_bins}_{sequence}.pkl')
     if os.path.exists(embeddings_file):
         with open(embeddings_file, 'rb') as f:
             embeddings = pickle.load(f)
@@ -192,9 +200,6 @@ def get_correspondances(sequence: str, metric: str = 'euclidean', method: str = 
             if len(candidates) > 0:
                 dist = get_distances(metric, embeddings[(cam1, id1)],
                                      [embeddings[(cam2, id2)] for cam2, id2 in candidates])
-                # dist = pairwise_distances([embeddings[(cam1, id1)]],
-                #                           [embeddings[(cam2, id2)] for cam2, id2 in candidates],
-                #                           metric).flatten()
 
                 ind = dist.argmin()
                 if dist[ind] < thresh:
@@ -235,11 +240,11 @@ def write_results(results, path):
                 file.write(','.join(list(map(str, line))) + '\n')
 
 
-def task2(sequence: str, metric: str = 'euclidean', method: str = 'dummy', thresh=500):
+def task2(sequence: str, metric: str = 'euclidean', method: str = 'dummy', thresh=20., num_bins: int = 32):
     # obtain reid results
     seq_path = str(Path(f'train/{sequence}'))
-    path_results = f'./results/week5/{method}_{metric}_{thresh}'
-    results = get_correspondances(sequence=sequence, method=method, metric=metric, thresh=thresh)
+    path_results = f'./results/week5/{sequence}_{metric}_{method}_{thresh}_{num_bins}'
+    results = get_correspondances(sequence=sequence, method=method, metric=metric, num_bins=num_bins, thresh=thresh)
     write_results(results, path=path_results)
 
     # compute metrics
@@ -251,7 +256,14 @@ def task2(sequence: str, metric: str = 'euclidean', method: str = 'dummy', thres
             y_true = dets_true.get(frame, [])
             y_pred = dets_pred.get(frame, [])
             idf1_computation.add_frame_detections(y_true, y_pred)
-    print(f'Metrics: {idf1_computation.get_computation()}')
+
+    return results, idf1_computation.get_computation()
+
+
+def postprocess(sequence: str, metric: str = 'euclidean', method: str = 'dummy', thresh=20., num_bins: int = 32):
+    # obtain reid results
+    seq_path = str(Path(f'train/{sequence}'))
+    path_results = f'./results/week5/{sequence}_{metric}_{method}_{thresh}_{num_bins}'
 
     cams = sorted(os.listdir(seq_path))
     import imageio
@@ -276,4 +288,37 @@ def task2(sequence: str, metric: str = 'euclidean', method: str = 'dummy', thres
 
 
 if __name__ == '__main__':
-    task2(sequence='S03', method='histogram', metric='histogram_correl')
+    compute_video = False
+    summary_results = f'./results/week5/summary.txt'
+    idfs = []
+
+    param_space = [
+        {
+            'sequence': 'S03',
+            'method': 'histogram',
+            'metric': 'euclidean',
+            'thresh': 0.33,
+            'num_bins': 32,
+        },
+        {
+            'sequence': 'S03',
+            'method': 'histogram',
+            'metric': 'euclidean',
+            'thresh': 0.33,
+            'num_bins': 64,
+        },
+    ]
+    for params in param_space:
+        _, summary = task2(**params)
+        print(f' IDF1 {summary["idf1"]["metrics"] * 100}')
+        idfs.append(summary["idf1"]["metrics"] * 100)
+        with open(summary_results, 'a') as f:
+            text = ', '.join(f'{key}: {value}' for key, value in params.items())
+            text += f'=> {summary["idf1"]["metrics"] * 100}\n'
+            f.write(text)
+        if compute_video:
+            postprocess(**params)
+
+    best_params = param_space[idfs.index(max(idfs))]
+    print(f' Best configuration is {best_params}')
+    postprocess(**best_params)
