@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, OrderedDict
 from collections import defaultdict, OrderedDict
 from pathlib import Path
 from copy import deepcopy
@@ -41,7 +41,7 @@ def parse_annotations_from_xml(path: str) -> List[Detection]:
     return annotations
 
 
-def parse_annotations_from_txt(path: str) -> List[Detection]:
+def parse_annotations_from_txt(path: str):
     with open(path) as f:
         lines = f.readlines()
 
@@ -70,17 +70,17 @@ def parse_annotations(path: str) -> List[Detection]:
     elif Path(path).suffix == ".txt":
         return parse_annotations_from_txt(path)
     else:
-        raise ValueError(f'Invalid file extension: {ext}')
+        raise ValueError(f'Invalid file extension: {Path(path).suffix}')
 
 
-def group_by_frame(detections: List[Detection]):
+def group_by_frame(detections):
     grouped = defaultdict(list)
     for det in detections:
         grouped[det.frame].append(det)
     return OrderedDict(sorted(grouped.items()))
 
 
-def group_by_id(detections: List[Detection]):
+def group_by_id(detections):
     grouped = defaultdict(list)
     for det in detections:
         grouped[det.id].append(det)
@@ -92,6 +92,14 @@ def resolve_tracks_from_detections(detections):
     tracks = {}
     for identifier in grouped.keys():
         tracks[identifier] = Track(identifier, grouped[identifier])
+    return tracks
+
+
+def group_in_tracks(detections, camera):
+    grouped = group_by_id(detections)
+    tracks = {}
+    for id in grouped.keys():
+        tracks[id] = Track(id, grouped[id], camera)
     return tracks
 
 
