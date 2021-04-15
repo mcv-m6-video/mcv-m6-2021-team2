@@ -34,6 +34,7 @@ max_age = 1
 min_hits = 3
 iou_threshold = 0.3
 
+
 def task_1_max_overlap(sequences, cameras):
     idf1s = {}
     for seq in sequences:
@@ -196,8 +197,9 @@ def task_1_max_overlap_with_flow(sequences, cameras):
             summary = metrics.get_computation()
             idf1s[seq].append(summary['idf1']['metrics']*100)
             print(f'sequence: {seq}, camera: {cam}, dist_th: {DIST_THRESHOLD}, summary:\n{summary}')
-    with open(str(RESULTS_DIR / f'optical_flow{DETECTOR}.pkl'), 'wb') as file:
+    with open(str(RESULTS_DIR / f'optical_flow_{DETECTOR}.pkl'), 'wb') as file:
         pickle.dump(idf1s, file)
+
 
 if __name__ == "__main__":
     sequences = ['S01', 'S03', 'S04']
