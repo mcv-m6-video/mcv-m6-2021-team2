@@ -60,8 +60,25 @@ def parse_annotations_from_txt(path: str):
             score=float(data[6])
         ))
 
-    grouped = defaultdict(list)
-    for annotation in annotations:
-        grouped[annotation.frame].append(annotation)
+    return annotations
 
+def group_by_frame(detections):
+    grouped = defaultdict(list)
+    for det in detections:
+        grouped[det.frame].append(det)
     return OrderedDict(sorted(grouped.items()))
+
+
+def group_by_id(detections):
+    grouped = defaultdict(list)
+    for det in detections:
+        grouped[det.id].append(det)
+    return OrderedDict(sorted(grouped.items()))
+
+
+def group_in_tracks(detections, camera):
+    grouped = group_by_id(detections)
+    tracks = {}
+    for id in grouped.keys():
+        tracks[id] = Track(id, grouped[id], camera)
+    return tracks
