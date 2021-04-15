@@ -10,8 +10,11 @@ class Detection:
     ytl: float
     xbr: float
     ybr: float
+    video_seq: str = None
+    cam: str = None
     score: float = None
     parked: bool = None
+    frame_path: str = None
 
     @property
     def bbox(self):

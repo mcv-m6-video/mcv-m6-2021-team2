@@ -32,7 +32,7 @@ def get_frames_from_video(video_path: str,
         if has_frames:
             yield (frame_idx + 1, frame)
 
-def get_video_lengh(video_path: str) -> int:
+def get_video_lenght(video_path: str) -> int:
     if not Path(video_path).exists:
         raise FileNotFoundError(f'Video path not found: {video_path}.')
 
