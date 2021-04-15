@@ -6,7 +6,7 @@ import pickle
 
 from collections import defaultdict
 
-from src.readers.ai_city_reader import parse_annotations, group_by_id, group_by_frame, parse_annotations_from_txt
+from src.readers.ai_city_reader import group_by_id, group_by_frame, parse_annotations_from_txt
 from sklearn.metrics.pairwise import pairwise_distances
 from src.metrics.mot_metrics import IDF1Computation
 from src.video import get_frames_from_video
@@ -21,9 +21,28 @@ import torch
 import networkx as nx
 
 
-def is_static(track, thresh=50):
-    std = np.std([det.center for det in track], axis=0)
-    return np.all(std < thresh)
+def is_static(track, distance_threshold=650, min_recurrent_tracking=5):
+    if len(track) < min_recurrent_tracking:
+        return True
+
+    centroids_of_detections = np.array([[(d.xtl + d.xbr) / 2, (d.ytl + d.ybr) / 2] for d in track])
+    dists = pairwise_distances(centroids_of_detections, centroids_of_detections, metric='euclidean')
+
+    if np.max(dists) > distance_threshold:
+        return False
+    else:
+        return True
+
+
+def filter_moving_tracks(all_tracks, distance_threshold, min_recurrent_tracking):
+    moving_tracks = []
+    for track in all_tracks:
+        if len(track.tracking) > min_recurrent_tracking:
+            centroids_of_detections = np.array([[(d.xtl + d.xbr) / 2, (d.ytl + d.ybr) / 2] for d in track.tracking])
+            dists = pairwise_distances(centroids_of_detections, centroids_of_detections, metric='euclidean')
+
+            if np.max(dists) > distance_threshold:
+                moving_tracks.append(track)
 
 
 def get_track_embedding(track, cap, encoder, max_views=32):
@@ -100,7 +119,7 @@ class MetricLearningEncoder(nn.Module):
     def __init__(self, path='./checkpoints/epoch_19__ckpt.pth'):
         super().__init__()
         self.cuda = torch.cuda.is_available()
-        self.model = torch.load(path)
+        self.model = torch.load(path, map_location=torch.device('cpu'))
         self.cuda = torch.cuda.is_available()
         if self.cuda:
             self.model = self.model.cuda()
@@ -115,7 +134,8 @@ class MetricLearningEncoder(nn.Module):
 
     def forward(self, x):
         try:
-            return self.model.get_embedding(x)
+            import torch.nn.functional as F
+            return F.normalize(self.model.get_embedding(x), p=2, dim=1)
         except:
             return self.model(x)
 
@@ -172,6 +192,13 @@ def get_encoder(method, num_bins):
 def get_distances(metric, embed_cam1, embed_cams2):
     if metric == 'euclidean':
         dist = pairwise_distances([embed_cam1], embed_cams2, metric).flatten()
+    elif metric == 'cosine':
+        from scipy.spatial import distance
+        dist = []
+        for embed_cam2 in embed_cams2:
+            d = distance.cosine(embed_cam1, embed_cam2)
+            dist.append(d)
+        dist = np.array(dist)
     elif metric == 'histogram_correl':
         dist = []
         for embed_cam2 in embed_cams2:
@@ -187,7 +214,7 @@ def get_correspondances(sequence: str, metric: str = 'euclidean', method: str = 
     seq_path = str(Path(f'train/{sequence}'))
     cams = sorted(os.listdir(seq_path))
     tracks_by_cam = {
-        cam: group_by_id(parse_annotations(os.path.join(seq_path, cam, 'mtsc', 'mtsc_tc_mask_rcnn.txt')))
+        cam: group_by_id(parse_annotations_from_txt(os.path.join(seq_path, cam, 'mtsc', 'mtsc_tc_mask_rcnn.txt')))
         for cam in cams
     }
     cap = {
@@ -211,9 +238,11 @@ def get_correspondances(sequence: str, metric: str = 'euclidean', method: str = 
         embeddings = get_track_embeddings(tracks_by_cam, cap, encoder, save_path=embeddings_file)
 
     embeddings = {(cam, id): embd for cam in embeddings for id, embd in embeddings[cam].items()}
+
     # at this stage we have `embeddings` mapped by pairs (cam, id): That means, that for a camera and id pair we only
     # have a single embedding
     G = nx.Graph()
+    weights = {}
     for cam1 in cams:
         for id1, track1 in tracks_by_cam[cam1].items():
             candidates = []
@@ -231,14 +260,27 @@ def get_correspondances(sequence: str, metric: str = 'euclidean', method: str = 
                 ind = dist.argmin()
                 if dist[ind] < thresh:
                     cam2, id2 = candidates[ind]
-                    G.add_edge((cam1, id1), (cam2, id2))
+                    G.add_edge((cam1, id1), (cam2, id2), weight=1 / dist[ind])
+                    weights[(cam1, id1, cam2, id2)] = dist[ind]
+                    weights[(cam2, id2, cam1, id1)] = dist[ind]
 
     groups = []
     while G.number_of_nodes() > 0:
-        cliques = nx.find_cliques(G)
-        maximal = max(cliques, key=len)
-        groups.append(maximal)
-        G.remove_nodes_from(maximal)
+        cliques = list(nx.find_cliques(G))
+        best_clique = cliques[0]
+        max_len = 0
+        min_dist = 99999999
+        for clique in cliques:
+            if len(clique) >= max_len:
+                max_len = len(clique)
+                if len(clique) > 1:
+                    key_tuple = (clique[0][0], clique[0][1], clique[1][0], clique[1][1])
+                    if weights[key_tuple] < min_dist:
+                        best_clique = clique
+                        min_dist = weights[key_tuple]
+
+        groups.append(best_clique)
+        G.remove_nodes_from(best_clique)
 
     results = defaultdict(list)
     for global_id, group in enumerate(groups):
@@ -338,7 +380,14 @@ if __name__ == '__main__':
             'sequence': 'S03',
             'method': 'metric',
             'metric': 'euclidean',
-            'thresh': 0.33,
+            'thresh': 15,
+            'num_bins': -1,
+        },
+        {
+            'sequence': 'S03',
+            'method': 'metric',
+            'metric': 'cosine',
+            'thresh': 0.2,
             'num_bins': -1,
         },
     ]
