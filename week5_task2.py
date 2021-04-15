@@ -1,7 +1,5 @@
 import os
-import cv2
 from pathlib import Path
-import numpy as np
 from tqdm import tqdm
 
 import pickle
@@ -12,6 +10,13 @@ from src.readers.ai_city_reader import parse_annotations, group_by_id, group_by_
 from sklearn.metrics.pairwise import pairwise_distances
 from src.metrics.mot_metrics import IDF1Computation
 from src.video import get_frames_from_video
+import torchvision.transforms.functional as F
+from torch import nn
+
+import numpy as np
+import cv2
+from PIL import Image
+import torch
 
 import networkx as nx
 
@@ -91,13 +96,35 @@ def get_track_embeddings(tracks_by_cam, cap, encoder, batch_size=512, save_path=
     return embeddings
 
 
-class MetricLearningEncoder:
+class MetricLearningEncoder(nn.Module):
+    def __init__(self, path='./checkpoints/epoch_19__ckpt.pth'):
+        super().__init__()
+        self.cuda = torch.cuda.is_available()
+        self.model = torch.load(path)
+        self.cuda = torch.cuda.is_available()
+        if self.cuda:
+            self.model = self.model.cuda()
 
-    def __init__(self):
-        self.length = 512
+    @staticmethod
+    def transform(img):
+        img = Image.fromarray(img)
+        img = F.resize(img, (128, 128))
+        img = F.to_tensor(img)
+        img = F.normalize(img, mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        return img
+
+    def forward(self, x):
+        try:
+            return self.model.get_embedding(x)
+        except:
+            return self.model(x)
 
     def get_embeddings(self, batch):
-        return np.random.random((len(batch), self.length))
+        with torch.no_grad():
+            batch = torch.stack([self.transform(img) for img in batch])
+            if self.cuda:
+                batch = batch.cuda()
+            return self.forward(batch).squeeze().cpu().numpy()
 
 
 class HistogramEncoder:
@@ -306,6 +333,13 @@ if __name__ == '__main__':
             'metric': 'euclidean',
             'thresh': 0.33,
             'num_bins': 64,
+        },
+        {
+            'sequence': 'S03',
+            'method': 'metric',
+            'metric': 'euclidean',
+            'thresh': 0.33,
+            'num_bins': -1,
         },
     ]
     for params in param_space:
