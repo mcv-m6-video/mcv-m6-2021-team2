@@ -66,12 +66,12 @@ def task_1_find_best_baseline(distance_thresholds, min_tracking, cameras, algori
 
 def compute_results():
     distance_thresholds = [
-        400, 450, 500, 550, 600, 650, 700, 750, 800
+        600, 625, 650, 675, 700, 725
     ]
     min_tracking = 5
     cameras = ['c010', 'c011', 'c012', 'c013', 'c014', 'c015']
     algorithm = 'tc'
-    detector = 'mask_rcnn'
+    detector = 'yolo3'
     task_1_find_best_baseline(distance_thresholds, min_tracking, cameras, algorithm, detector)
 
 
@@ -88,8 +88,6 @@ def read_results(result_path, cameras=['c010', 'c011', 'c012', 'c013', 'c014', '
 
 if __name__ == "__main__":
     compute_results()
-    """
     read_results(
-        str(RESULTS_DIR / 'idf1_seq3_deepsort_mask_rcnn.pkl'),
+        str(RESULTS_DIR / 'idf1_seq3_tc_yolo3.pkl'),
     )
-    """
