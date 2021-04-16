@@ -5,8 +5,7 @@ class Track(object):
 
     def __init__(self, track_id, detection):
         self.track_id = track_id
-        detection.id = self.track_id
-        self.tracking = [detection]
+        self.tracking = detection if isinstance(detection, list) else [detection]
         self.color = (int(random.random() * 256),
                       int(random.random() * 256),
                       int(random.random() * 256))

@@ -7,6 +7,7 @@ import numpy as np
 import xmltodict
 
 from src.detection import Detection
+from src.track import Track
 
 
 def parse_annotations_from_xml(path: str) -> List[Detection]:
@@ -62,6 +63,16 @@ def parse_annotations_from_txt(path: str):
 
     return annotations
 
+
+def parse_annotations(path: str) -> List[Detection]:
+    if Path(path).suffix == ".xml":
+        return parse_annotations_from_xml(path)
+    elif Path(path).suffix == ".txt":
+        return parse_annotations_from_txt(path)
+    else:
+        raise ValueError(f'Invalid file extension: {Path(path).suffix}')
+
+
 def group_by_frame(detections):
     grouped = defaultdict(list)
     for det in detections:
@@ -76,9 +87,50 @@ def group_by_id(detections):
     return OrderedDict(sorted(grouped.items()))
 
 
+def resolve_tracks_from_detections(detections):
+    grouped = group_by_id(detections)
+    tracks = {}
+    for identifier in grouped.keys():
+        tracks[identifier] = Track(identifier, grouped[identifier])
+    return tracks
+
+
 def group_in_tracks(detections, camera):
     grouped = group_by_id(detections)
     tracks = {}
     for id in grouped.keys():
         tracks[id] = Track(id, grouped[id], camera)
     return tracks
+
+
+class AICityChallengeAnnotationReader:
+
+    def __init__(self, path):
+        self.annotations = parse_annotations(path)
+        self.classes = np.unique([det.label for det in self.annotations])
+
+    def get_annotations(self, classes=None, noise_params=None, do_group_by_frame=True, only_not_parked=False):
+        if classes is None:
+            classes = self.classes
+
+        detections = []
+        for det in self.annotations:
+            if det.label in classes:  # filter by class
+                if only_not_parked and det.parked:
+                    continue
+                d = deepcopy(det)
+                if noise_params:  # add noise
+                    if np.random.random() > noise_params['drop']:
+                        box_noisy = d.bbox + np.random.normal(noise_params['mean'], noise_params['std'], 4)
+                        d.xtl = box_noisy[0]
+                        d.ytl = box_noisy[1]
+                        d.xbr = box_noisy[2]
+                        d.ybr = box_noisy[3]
+                        detections.append(d)
+                else:
+                    detections.append(d)
+
+        if do_group_by_frame:
+            detections = group_by_frame(detections)
+
+        return detections
