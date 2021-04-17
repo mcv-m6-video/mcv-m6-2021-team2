@@ -16,24 +16,23 @@ from detectron2.structures import BoxMode
 from detectron2.evaluation import COCOEvaluator, inference_on_dataset
 
 def get_dicts(frames_idx: List[int],
-              annotations: OrderedDict,
-              frames_path: str) -> NoReturn:
+              annotations: OrderedDict) -> NoReturn:
 
     dataset_dicts = []
 
     for frame_idx in frames_idx:
-        record = {}
-
-        filename = str(Path.joinpath(Path(frames_path), f'frame_{frame_idx}.png'))
-        height, width = cv2.imread(filename).shape[:2]
-
-        record["file_name"] = filename
-        record["image_id"] = frame_idx
-        record["height"] = height
-        record["width"] = width
-
-        objs = []
         if frame_idx in annotations:
+            record = {}
+
+            filename = annotations[frame_idx][0].frame_path
+            height, width = cv2.imread(filename).shape[:2]
+
+            record["file_name"] = filename
+            record["image_id"] = frame_idx
+            record["height"] = height
+            record["width"] = width
+
+            objs = []
             for det in annotations[frame_idx]:
                 obj = {
                     "bbox": det.bbox,
@@ -41,24 +40,24 @@ def get_dicts(frames_idx: List[int],
                     "category_id": 0,
                 }
                 objs.append(obj)
-        record["annotations"] = objs
-        """
-        print(annotations[frame_idx])
-        print(record)
-        img = cv2.imread(filename)
+            """
+            record["annotations"] = objs
+            print(annotations[frame_idx])
+            print(record)
+            img = cv2.imread(filename)
 
-        for det in objs:
-            cv2.rectangle(img, (int(det['bbox'][0]), int(det['bbox'][1])), (int(det['bbox'][2]), int(det['bbox'][3])), (0, 255, 0), 2)
-        cv2.imwrite(f'obj_frame_{frame_idx}.png', img)
+            for det in objs:
+                cv2.rectangle(img, (int(det['bbox'][0]), int(det['bbox'][1])), (int(det['bbox'][2]), int(det['bbox'][3])), (0, 255, 0), 2)
+            cv2.imwrite(f'obj_frame_{frame_idx}.png', img)
 
-        for det in annotations[frame_idx]:
-            bbox = det.bbox
-            cv2.rectangle(img, (int(bbox[0]), int(bbox[1])), (int(bbox[2]), int(+bbox[3])), (0, 255, 0), 2)
-        cv2.imwrite(f'gt_frame_{frame_idx}.png', img)
-        exit(1)
-        """
+            for det in annotations[frame_idx]:
+                bbox = det.bbox
+                cv2.rectangle(img, (int(bbox[0]), int(bbox[1])), (int(bbox[2]), int(+bbox[3])), (0, 255, 0), 2)
+            cv2.imwrite(f'gt_frame_{frame_idx}.png', img)
+            exit(1)
+            """
 
-        dataset_dicts.append(record)
+            dataset_dicts.append(record)
 
     return dataset_dicts
 
@@ -67,8 +66,8 @@ def train(model_name: str,
           results_path: str,
           train_idx: List[int],
           test_idx: List[int],
-          annotations: OrderedDict,
-          frames_path: str,
+          train_annotations: OrderedDict,
+          test_annotations: OrderedDict,
           lr: float = 0.0025,
           max_it: int = 500,
           img_per_batch: int = 16,
@@ -86,9 +85,9 @@ def train(model_name: str,
             DatasetCatalog.remove(catalog)
 
         if catalog_type == 'train':
-            DatasetCatalog.register(catalog, lambda d=catalog_type: get_dicts(train_idx, annotations, frames_path))
+            DatasetCatalog.register(catalog, lambda d=catalog_type: get_dicts(train_idx, train_annotations))
         else:
-            DatasetCatalog.register(catalog, lambda d=catalog_type: get_dicts(test_idx, annotations, frames_path))
+            DatasetCatalog.register(catalog, lambda d=catalog_type: get_dicts(test_idx, test_annotations))
 
         MetadataCatalog.get(catalog).set(thing_classes=['Car'])
 
@@ -99,15 +98,18 @@ def train(model_name: str,
     cfg.DATASETS.TRAIN = (f'aic19_train',)
     cfg.DATASETS.TEST = ()
 
-    cfg.DATALOADER.NUM_WORKERS = 8
+    cfg.DATALOADER.NUM_WORKERS = 16
 
     cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url(model_name)
     cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.5
-    cfg.MODEL.BACKBONE.FREEZE_AT = num_freeze
+    #cfg.MODEL.BACKBONE.FREEZE_AT = 1
     cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE = batch_size
     cfg.MODEL.ROI_HEADS.NUM_CLASSES = 1
 
-    cfg.SOLVER.IMS_PER_BATCH = 16
+    cfg.INPUT.MAX_SIZE_TEST = 1200
+    cfg.INPUT.MAX_SIZE_TRAIN = 1200
+
+    cfg.SOLVER.IMS_PER_BATCH = img_per_batch
     cfg.SOLVER.BASE_LR = lr
     cfg.SOLVER.MAX_ITER = max_it
     cfg.SOLVER.STEPS = []
