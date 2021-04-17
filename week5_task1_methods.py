@@ -19,7 +19,7 @@ RESULTS_DIR = Path('results/week5/')
 
 DETECTOR = 'mask_rcnn'
 MIN_TRACKING = 5
-DIST_THRESHOLD = 600
+DIST_THRESHOLD = 725
 FLOW_METHOD = 'block_matching'
 
 # Block matching parameters
