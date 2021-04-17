@@ -201,6 +201,17 @@ def task_1_max_overlap_with_flow(sequences, cameras):
         pickle.dump(idf1s, file)
 
 
+def read_results(result_path, cameras):
+    with open(result_path, 'rb') as file:
+        results = pickle.load(file)
+    for key, value in results.items():
+        print(f'Threshold:{key}, Average: {np.mean(value)}')
+        print('Per camera')
+        for item, camera in zip(value, cameras[key]):
+            print(f'camera: {camera}, value:{item}')
+        print('-'*10)
+
+
 if __name__ == "__main__":
     sequences = ['S01', 'S03', 'S04']
     cameras = {
@@ -212,3 +223,7 @@ if __name__ == "__main__":
         ]
     }
     task_1_max_overlap(sequences, cameras)
+    read_results(
+        str(RESULTS_DIR / 'max_overlap_mask_rcnn.pkl'),
+        cameras
+    )

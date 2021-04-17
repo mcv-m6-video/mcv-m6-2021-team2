@@ -21,7 +21,7 @@ import torch
 import networkx as nx
 
 
-def is_static(track, distance_threshold=650, min_recurrent_tracking=5):
+def is_static(track, distance_threshold=725, min_recurrent_tracking=5):
     if len(track) < min_recurrent_tracking:
         return True
 
@@ -205,16 +205,21 @@ def get_distances(metric, embed_cam1, embed_cams2):
             d = cv2.compareHist(embed_cam1, embed_cam2, cv2.HISTCMP_CORREL)
             dist.append(d)
         dist = np.array(dist)
-
+    elif metric == 'histogram_hellinger':
+        dist = []
+        for embed_cam2 in embed_cams2:
+            d = cv2.compareHist(embed_cam1, embed_cam2, cv2.HISTCMP_HELLINGER)
+            dist.append(d)
+        dist = np.array(dist)
     return dist
 
 
 def get_correspondances(sequence: str, metric: str = 'euclidean', method: str = 'dummy', num_bins: int = 32,
                         thresh=20.):
-    seq_path = str(Path(f'train/{sequence}'))
+    seq_path = str(Path(f'data/AICity_track_data/train/{sequence}'))
     cams = sorted(os.listdir(seq_path))
     tracks_by_cam = {
-        cam: group_by_id(parse_annotations_from_txt(os.path.join(seq_path, cam, 'mtsc', 'mtsc_tc_mask_rcnn.txt')))
+        cam: group_by_id(parse_annotations_from_txt(os.path.join(seq_path, cam, 'mtsc', 'mtsc_tc_yolo3.txt')))
         for cam in cams
     }
     cap = {
@@ -230,7 +235,7 @@ def get_correspondances(sequence: str, metric: str = 'euclidean', method: str = 
 
     encoder = get_encoder(method, num_bins)
 
-    embeddings_file = os.path.join('./embeddings', f'{method}_{num_bins}_{sequence}.pkl')
+    embeddings_file = os.path.join('./results/week5/embeddings', f'{method}_{num_bins}_{sequence}.pkl')
     if os.path.exists(embeddings_file):
         with open(embeddings_file, 'rb') as f:
             embeddings = pickle.load(f)
@@ -311,7 +316,7 @@ def write_results(results, path):
 
 def task2(sequence: str, metric: str = 'euclidean', method: str = 'dummy', thresh=20., num_bins: int = 32):
     # obtain reid results
-    seq_path = str(Path(f'train/{sequence}'))
+    seq_path = str(Path(f'data/AICity_track_data/train/{sequence}'))
     path_results = f'./results/week5/{sequence}_{metric}_{method}_{thresh}_{num_bins}'
     results = get_correspondances(sequence=sequence, method=method, metric=metric, num_bins=num_bins, thresh=thresh)
     write_results(results, path=path_results)
@@ -331,7 +336,7 @@ def task2(sequence: str, metric: str = 'euclidean', method: str = 'dummy', thres
 
 def postprocess(sequence: str, metric: str = 'euclidean', method: str = 'dummy', thresh=20., num_bins: int = 32):
     # obtain reid results
-    seq_path = str(Path(f'train/{sequence}'))
+    seq_path = str(Path(f'data/AICity_track_data/train/{sequence}'))
     path_results = f'./results/week5/{sequence}_{metric}_{method}_{thresh}_{num_bins}'
 
     cams = sorted(os.listdir(seq_path))
@@ -350,8 +355,7 @@ def postprocess(sequence: str, metric: str = 'euclidean', method: str = 'dummy',
                              int(random.random() * 256),
                              int(random.random() * 256))
                     colors[det.id] = color
-                cv2.rectangle(current_frame, (int(det.xtl), int(det.ytl)), (int(det.xbr), int(det.ybr)), colors[det.id],
-                              6)
+                cv2.rectangle(current_frame, (int(det.xtl), int(det.ytl)), (int(det.xbr), int(det.ybr)), colors[det.id],6)
             current_frame = cv2.cvtColor(current_frame, cv2.COLOR_BGR2RGB)
             writer.append_data(cv2.resize(current_frame, (600, 350)))
 
@@ -375,6 +379,27 @@ if __name__ == '__main__':
             'metric': 'euclidean',
             'thresh': 0.33,
             'num_bins': 64,
+        },
+        {
+            'sequence': 'S03',
+            'method': 'histogram',
+            'metric': 'histogram_correl',
+            'thresh': 0.33,  # need to supervise first
+            'num_bins': 32,
+        },
+        {
+            'sequence': 'S03',
+            'method': 'histogram',
+            'metric': 'histogram_correl',
+            'thresh': 0.33,  # need to supervise first
+            'num_bins': 64,
+        },
+        {
+            'sequence': 'S03',
+            'method': 'histogram',
+            'metric': 'histogram_hellinger',
+            'thresh': 0.33,  # need to supervise first
+            'num_bins': 32,
         },
         {
             'sequence': 'S03',
