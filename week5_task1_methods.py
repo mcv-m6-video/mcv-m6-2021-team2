@@ -4,7 +4,7 @@ from src.readers.ai_city_reader import resolve_tracks_from_detections, group_by_
 from src.video import get_frames_from_video, generate_video, get_video_length
 from src.metrics.mot_metrics import IDF1Computation
 from src.tracking import MaxOverlapTracker, filter_moving_tracks
-from src.test_bm import block_matching_flow
+from src.block_matching import block_matching_flow
 from src.detection import Detection
 from src.track import Track
 from src.sort import Sort
@@ -35,7 +35,7 @@ min_hits = 3
 iou_threshold = 0.3
 
 
-def task_1_max_overlap(sequences, cameras):
+def task_1_max_overlap(sequences, cameras, detector):
     idf1s = {}
     for seq in sequences:
         idf1s[seq] = []
@@ -48,7 +48,7 @@ def task_1_max_overlap(sequences, cameras):
             gt = gt_reader.get_annotations(classes=['car'])
 
             # Detections
-            det_reader = AICityChallengeAnnotationReader(str(data_dir / 'det' / f'det_{DETECTOR}.txt'))
+            det_reader = AICityChallengeAnnotationReader(str(data_dir / 'det' / f'det_{detector}.txt'))
             dets = det_reader.get_annotations(classes=['car'])
             tracker = MaxOverlapTracker()
             metrics = IDF1Computation()
@@ -65,7 +65,7 @@ def task_1_max_overlap(sequences, cameras):
             for track in moving_tracks:
                 detections.extend(track.tracking)
             detections = group_by_frame(detections)
-            
+
             for frame_idx in range(0, get_video_length(str(video_path))):
                 frame_detections = []
                 for det in detections.get(frame_idx-1, []):
@@ -75,7 +75,7 @@ def task_1_max_overlap(sequences, cameras):
             summary = metrics.get_computation()
             idf1s[seq].append(summary['idf1']['metrics']*100)
             print(f'sequence: {seq}, camera: {cam}, dist_th: {DIST_THRESHOLD}, summary:\n{summary}')
-    with open(str(RESULTS_DIR / f'max_overlap_{DETECTOR}.pkl'), 'wb') as file:
+    with open(str(RESULTS_DIR / f'max_overlap_{detector}.pkl'), 'wb') as file:
         pickle.dump(idf1s, file)
 
 
@@ -111,7 +111,7 @@ def task_1_kalman_filter(sequences, cameras):
             for track in moving_tracks:
                 detections.extend(track.tracking)
             detections = group_by_frame(detections)
-            
+
             for frame_idx in range(0, get_video_length(str(video_path))):
                 frame_detections = []
                 for det in detections.get(frame_idx-1, []):
@@ -125,7 +125,7 @@ def task_1_kalman_filter(sequences, cameras):
         pickle.dump(idf1s, file)
 
 
-def task_1_max_overlap_with_flow(sequences, cameras):
+def task_1_max_overlap_with_flow(sequences, cameras, detector):
     idf1s = {}
     for seq in sequences:
         idf1s[seq] = []
@@ -143,7 +143,7 @@ def task_1_max_overlap_with_flow(sequences, cameras):
             gt = gt_reader.get_annotations(classes=['car'])
 
             # Detections
-            det_reader = AICityChallengeAnnotationReader(str(data_dir / 'det' / f'det_{DETECTOR}.txt'))
+            det_reader = AICityChallengeAnnotationReader(str(data_dir / 'det' / f'det_{detector}.txt'))
             dets = det_reader.get_annotations(classes=['car'])
             tracker = MaxOverlapTracker()
             metrics = IDF1Computation()
@@ -177,7 +177,7 @@ def task_1_max_overlap_with_flow(sequences, cameras):
             for track in moving_tracks:
                 detections.extend(track.tracking)
             detections = group_by_frame(detections)
-            
+
             for frame_idx in range(0, get_video_length(str(video_path))):
                 frame_detections = []
                 for det in detections.get(frame_idx-1, []):
@@ -187,7 +187,7 @@ def task_1_max_overlap_with_flow(sequences, cameras):
             summary = metrics.get_computation()
             idf1s[seq].append(summary['idf1']['metrics']*100)
             print(f'sequence: {seq}, camera: {cam}, dist_th: {DIST_THRESHOLD}, summary:\n{summary}')
-    with open(str(RESULTS_DIR / f'optical_flow_{DETECTOR}.pkl'), 'wb') as file:
+    with open(str(RESULTS_DIR / f'optical_flow_{detector}.pkl'), 'wb') as file:
         pickle.dump(idf1s, file)
 
 
@@ -212,8 +212,14 @@ if __name__ == "__main__":
                 'c035', 'c036', 'c037', 'c038', 'c039', 'c040'
         ]
     }
+
+    for detector in ['yolo3', 'ssd512', 'mask_rcnn']:
+        task_1_max_overlap(sequences, cameras, detector)
+        task_1_max_overlap_with_flow(sequences, cameras, detector)
+    """
     task_1_kalman_filter(sequences, cameras)
     read_results(
         str(RESULTS_DIR / 'kalman_mask_rcnn.pkl'),
         cameras
     )
+    """

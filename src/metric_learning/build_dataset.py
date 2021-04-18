@@ -1,14 +1,16 @@
-import glob
+from typing import List, NoReturn
 import os
 from pathlib import Path
-
 import cv2
-import matplotlib.pyplot as plt
-from tqdm import tqdm
+import numpy as np
+import shutil
 
-from src.readers.ai_city_reader import parse_annotations_from_txt
+from src.video import get_frames_from_video
+from src.detection import Detection
+from src.readers.ai_city_reader import AICityChallengeAnnotationReader
 
 
+""" TO REVIEW
 def analyze_data(main_path, debug=False):
     areas = []
     heights = []
@@ -47,41 +49,61 @@ def downsample(img, max_height, max_width):
         # resize image
         img = cv2.resize(img, None, fx=scaling_factor, fy=scaling_factor, interpolation=cv2.INTER_AREA)
     return img
+"""
+
+def crop_car_from_frame(detection: Detection,
+                            frame: np.array,
+                            img_size: int) -> np.array:
+    car = frame[int(detection.ytl):int(detection.ybr),int(detection.xtl):int(detection.xbr)]
+    return cv2.resize(car, (img_size, img_size))
 
 
-def generate_train_crops(root, save_path, train_seqs, val_seqs, width=128, height=128):
+def generate_sequence(seq: str,
+                      dataset_path: str,
+                      output_path: str,
+                      img_size: int) -> NoReturn:
+    for cam in Path(Path.joinpath(Path(dataset_path), seq)).iterdir():
+        if cam.is_dir():
+            output_dataset_path = str(Path.joinpath(Path(__file__).parent, f'../../data/ml_database/{seq}/{cam.name}'))
 
-    def generate_crops(root, save_path):
-        for cam in os.listdir(root):
-            detections_by_frame = parse_annotations_from_txt(os.path.join(root, cam, 'gt', 'gt.txt'))
-            cap = cv2.VideoCapture(os.path.join(root, cam, 'vdo.avi'))
-            length = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+            video_path = str(Path.joinpath(cam, f'./vdo.avi'))
 
-            for _ in tqdm(range(length), desc=cam):
-                frame = int(cap.get(cv2.CAP_PROP_POS_FRAMES))
-                _, img = cap.read()
-                if frame not in detections_by_frame:
+            gt_path = str(Path.joinpath(cam, f'./gt/gt.txt'))
+            gt_annotations = AICityChallengeAnnotationReader(gt_path).get_annotations(classes=['car'])
+
+            print(f'Seq {seq} - Cam {cam.name}')
+            for frame_idx, frame in get_frames_from_video(video_path):
+                if (frame_idx - 1) not in gt_annotations:
                     continue
 
-                for det in detections_by_frame[frame]:
-                    if det.width >= width and det.height >= height:
-                        id_path = os.path.join(save_path, str(det.id))
-                        os.makedirs(id_path, exist_ok=True)
+                for det in gt_annotations[frame_idx - 1]:
+                    if det.width >= img_size and det.height >= img_size:
+                        crop = crop_car_from_frame(det, frame, img_size)
 
-                        roi = img[int(det.ytl):int(det.ybr), int(det.xtl):int(det.xbr)]
-                        resized = cv2.resize(roi, (width, height))
-                        cv2.imwrite(os.path.join(id_path, f'{cam}_{frame}.png'), resized)
+                        output_crop_path = str(Path.joinpath(Path(output_path), f'{det.id}/{cam.name}_{frame_idx - 1}.png'))
+                        os.makedirs(str(Path.joinpath(Path(output_path), str(det.id))), exist_ok=True)
 
-    for seq in train_seqs:
-        generate_crops(root=os.path.join(root, seq), save_path=os.path.join(save_path, 'train'))
-    for seq in val_seqs:
-        generate_crops(root=os.path.join(root, seq), save_path=os.path.join(save_path, 'val'))
+                        cv2.imwrite(output_crop_path, crop)
 
-"""
-if __name__ == '__main__':
-    # analyze_data('data/AIC20_track3/train', debug=True)
-    generate_train_crops(root=str(Path.joinpath(Path(__file__).parent, './aic19-track1-mtmc-train/train')),
-                         save_path=str(Path.joinpath(Path(__file__).parent, './aic19_database')),
-                         train_seqs=['S01', 'S04'],
-                         val_seqs=['S03'])
-"""
+def generate_metric_learning_database(dataset_path: str,
+                                      train_seq: List[str],
+                                      test_seq: List[str],
+                                      img_size: int) -> NoReturn:
+
+    if Path.joinpath(Path(__file__).parent, f'../../data/ml_database').exists():
+        shutil.rmtree(str(Path.joinpath(Path(__file__).parent, f'../../data/ml_database')))
+
+    for seq in train_seq:
+        output_path = str(Path.joinpath(Path(__file__).parent, '../../data/ml_database/train'))
+        generate_sequence(seq=seq,
+                          dataset_path=dataset_path,
+                          output_path=output_path,
+                          img_size=img_size)
+    for seq in test_seq:
+        output_path = str(Path.joinpath(Path(__file__).parent, '../../data/ml_database/test'))
+        generate_sequence(seq=seq,
+                          dataset_path=dataset_path,
+                          output_path=output_path,
+                          img_size=img_size)
+
+

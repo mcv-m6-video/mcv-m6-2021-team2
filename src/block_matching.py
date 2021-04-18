@@ -1,170 +1,87 @@
-import cv2
-from tqdm import tqdm
-from typing import Tuple, List
+import time
+
 import numpy as np
-
-from src.metrics.distance import calc_distance
-from pathlib import Path
-
-
-def es(block_size: int,
-       target_area: np.array,
-       source_block: np.array,
-       distance_method: str = 'euclidean') -> Tuple[int, int]:
-
-    target_height, target_width = target_area.shape
-    min_dist = np.inf
-    pos = (0, 0)
-
-    for y_target in range(0, target_height-block_size, 1):
-        for x_target in range(0, target_width-block_size, 1):
-            target_block = target_area[y_target:y_target+block_size, x_target:x_target+block_size]
-
-            dist = calc_distance(source_block, target_block, distance_method)
-            if dist < min_dist:
-                min_dist = dist
-                pos = (y_target, x_target)
-
-    return pos
+import cv2
+from tqdm import trange
 
 
-def tss(block_size: int,
-        search_area: np.array,
-        source_block: np.array,
-        distance_method: str = 'euclidean') -> Tuple[int, int]:
-
-    def get_block(center: Tuple[int, int],
-                  block_size: int,
-                  source_block: np.array,
-                  image: np.array) -> np.array:
-        xtl = max(0, center[1]-block_size//2)
-        ytl = max(0, center[0]-block_size//2)
-        xbr = min(image.shape[1], center[1]+block_size//2)
-        ybr = min(image.shape[0], center[0]+block_size//2)
-
-        target_block = image[ytl:ybr, xtl:xbr]
-        if target_block.shape != source_block.shape:
-            return None
-        return target_block
-
-    step = 8
-    origin = (search_area.shape[0]//2, search_area.shape[1]//2)
-
-    min_dist = np.inf
-    pos = origin
-
-    while step != 1:
-        point_list = [
-            (origin[0]-step, origin[1]-step), (origin[0]+step, origin[1]+step), (origin[0]-step, origin[1]+step),
-            (origin[0]+step, origin[1]-step), (origin[0]-step, origin[1]), (origin[0]+step, origin[1]),
-            (origin[0], origin[1]+step), (origin[0], origin[1]+step), origin
-        ]
-
-        for center in point_list:
-            target_block = get_block(center, block_size, source_block, search_area)
-
-            if target_block is not None:
-                dist = calc_distance(source_block, target_block, distance_method)
-
-                if dist < min_dist:
-                    min_dist = dist
-                    pos = center
-
-        origin = pos
-        step = step//2
-
-    return (origin[0]-block_size//2, origin[1]-block_size//2)
-
-def ntss(block_size: int,
-         search_area: np.array,
-         source_block: np.array,
-         distance_method: str = 'euclidean') -> Tuple[int, int]:
-
-    def get_block(center: Tuple[int, int],
-                  block_size: int,
-                  source_block: np.array,
-                  image: np.array) -> np.array:
-        xtl = max(0, center[1]-block_size//2)
-        ytl = max(0, center[0]-block_size//2)
-        xbr = min(image.shape[1], center[1]+block_size//2)
-        ybr = min(image.shape[0], center[0]+block_size//2)
-
-        target_block = image[ytl:ybr, xtl:xbr]
-        if target_block.shape != source_block.shape:
-            return None
-        return target_block
-
-    step = 8
-    origin = (search_area.shape[0]//2, search_area.shape[1]//2)
-
-    min_dist = np.inf
-    pos = origin
-
-    while step != 1:
-        point_list = [
-            (origin[0]-step, origin[1]-step), (origin[0]+step, origin[1]+step), (origin[0]-step, origin[1]+step),
-            (origin[0]+step, origin[1]-step), (origin[0]-step, origin[1]), (origin[0]+step, origin[1]),
-            (origin[0], origin[1]+step), (origin[0], origin[1]+step), origin
-        ]
-
-        for center in point_list:
-            target_block = get_block(center, block_size, source_block, search_area)
-
-            if target_block is not None:
-                dist = calc_distance(source_block, target_block, distance_method)
-
-                if dist < min_dist:
-                    min_dist = dist
-                    pos = center
-
-        if step == 8 and pos == origin: # step 1
-            return (origin[0]-block_size//2, origin[1]-block_size//2)
-
-        origin = pos
-        step = step//2
-
-    return (origin[0]-block_size//2, origin[1]-block_size//2)
-
-
-def block_matching(current_frame: np.array,
-                   previous_frame: np.array,
-                   forward: bool,
-                   block_size: int,
-                   search_area: int,
-                   distance_method: str = 'euclidean',
-                   algorithm: str = 'tss') -> np.array:
-
-    if forward:
-        source = previous_frame
-        target = current_frame
+def distance(x1: np.ndarray, x2: np.ndarray, metric='euclidean'):
+    if metric == 'euclidean':
+        return np.sqrt(np.sum((x1 - x2) ** 2))
+    elif metric == 'sad':
+        return np.sum(np.abs(x1 - x2))
+    elif metric == 'mad':
+        return np.mean(np.abs(x1 - x2))
+    elif metric == 'ssd':
+        return np.sum((x1 - x2) ** 2)
+    elif metric == 'mse':
+        return np.mean((x1 - x2) ** 2)
     else:
-        source = current_frame
-        target = previous_frame
-    source_height, source_width = source.shape
+        raise ValueError(f'Unknown distance metric: {metric}')
 
-    result = np.zeros((source_height, source_width, 2))
 
-    for y_source in tqdm(range(0, source_height-block_size, block_size)):
-        for x_source in range(0, source_width-block_size, block_size):
-            source_block = source[y_source:y_source+block_size, x_source:x_source+block_size]
+def block_matching(reference, target, metric='euclidean', algorithm='es'):
+    """
+    Search reference in target and return the position with maximum correlation
+    """
+    if algorithm == 'es':
+        # exhaustive search
+        min_dist = np.inf
+        pos = (0, 0)
+        for i in range(target.shape[0]-reference.shape[0]):
+            for j in range(target.shape[1]-reference.shape[1]):
+                dist = distance(reference, target[i:i+reference.shape[0], j:j+reference.shape[1]], metric)
+                if dist < min_dist:
+                    pos = (i, j)
+                    min_dist = dist
+        return pos
+    elif algorithm == 'tss':
+        # three step search
+        step = 8
+        orig = ((target.shape[0]-reference.shape[0])//2, (target.shape[1]-reference.shape[1])//2)
+        step = (min(step, orig[0]), min(step, orig[1]))
+        while step[0] > 1 and step[1] > 1:
+            min_dist = np.inf
+            pos = orig
+            for i in [orig[0]-step[0], orig[0], orig[0]+step[0]]:
+                for j in [orig[1]-step[1], orig[1], orig[1]+step[1]]:
+                    dist = distance(reference, target[i:i + reference.shape[0], j:j + reference.shape[1]], metric)
+                    if dist < min_dist:
+                        pos = (i, j)
+                        min_dist = dist
+            orig = pos
+            step = (step[0]//2, step[1]//2)
+        return orig
+    else:
+        raise ValueError(f'Unknown block matching algorithm: {algorithm}')
 
-            xtl = max(0, x_source-search_area)
-            ytl = max(0, y_source-search_area)
-            xbr = min(source_width, x_source+block_size+search_area)
-            ybr = min(source_height, y_source+block_size+search_area)
 
-            target_area = target[ytl:ybr, xtl:xbr]
-            target_height, target_width = target_area.shape
+def block_matching_flow(img_prev: np.ndarray, img_next: np.ndarray, block_size=16, search_area=16,
+                        motion_type=True, metric='euclidean', algorithm='es'):
+    """
+    Compute block-matching based motion estimation
+    """
+    if motion_type:
+        reference = img_prev
+        target = img_next
+    else:
+        reference = img_next
+        target = img_prev
 
-            if algorithm == 'es':
-                point = es(block_size, target_area, source_block)
-            elif algorithm == 'tss':
-                point = tss(block_size, target_area, source_block)
-            else:
-                raise NotImplementedError(f'The algorithm: {algorithm} is not implemented yet.')
+    assert (reference.shape == target.shape)
+    height, width = reference.shape[:2]
 
-            u = point[1] - (x_source - xtl)
-            v = point[0] - (y_source - ytl)
-            result[y_source:y_source+block_size, x_source:x_source+block_size] = [u, v]
+    flow_field = np.zeros((height, width, 2), dtype=float)
+    for i in trange(0, height - block_size, block_size):
+        for j in range(0, width - block_size, block_size):
+            ii = max(i-search_area, 0)
+            jj = max(j-search_area, 0)
+            disp = block_matching(reference[i:i+block_size, j:j+block_size],
+                                  target[ii: min(i+block_size+search_area, height),
+                                         jj: min(j+block_size+search_area, width)],
+                                  metric, algorithm)
+            u = disp[1] - (j - jj)
+            v = disp[0] - (i - ii)
+            flow_field[i:i + block_size, j:j + block_size, :] = [u, v]
 
-    return result
+    return flow_field

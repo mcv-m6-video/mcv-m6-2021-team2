@@ -2,6 +2,9 @@ import os
 import argparse
 import datetime
 
+from typing import NoReturn
+from pathlib import Path
+
 import torch
 from torch.utils.data import DataLoader
 from torch import optim
@@ -25,7 +28,8 @@ def train_epoch(model, optimizer, criterion, data_loader, epoch, print_freq=20):
         samples, targets = data[0].cuda(), data[1].cuda()
 
         embeddings = model(samples)
-
+        print(embeddings, targets)
+        exit(1)
         loss, frac_pos_triplets = criterion(embeddings, targets)
         loss.backward()
         optimizer.step()
@@ -89,13 +93,6 @@ def evaluate(model, loader):
     return accuracy
 
 
-def save(model, epoch, save_dir, file_name):
-    os.makedirs(save_dir, exist_ok=True)
-    file_name = 'epoch_' + str(epoch) + '__' + file_name
-    save_path = os.path.join(save_dir, file_name)
-    torch.save(model, save_path)
-
-
 def get_transform(train):
     transforms = []
     # transforms.append(T.Resize((128, 128)))
@@ -108,39 +105,55 @@ def get_transform(train):
     return T.Compose(transforms)
 
 
-def train(data_path: str, save_path: str, log_path: str):
-    train_dataset = ImageFolder(root=os.path.join(data_path, 'train'), transform=get_transform(train=True))
-    train_sampler = PKSampler(train_dataset.targets, p=18, k=16)
-    train_loader = DataLoader(train_dataset, batch_size=288, sampler=train_sampler, num_workers=4)
+def train(output_path: str,
+          epochs: int,
+          lr: float,
+          batch_size: int,
+          num_workers: int) -> NoReturn:
 
-    val_dataset = ImageFolder(root=os.path.join(data_path, 'val'), transform=get_transform(train=False))
-    val_loader = DataLoader(val_dataset, batch_size=256, shuffle=False, num_workers=4)
+    train_ml_database_path = Path.joinpath(Path(__file__).parent, '../../data/ml_database/train')
+    test_ml_database_path = Path.joinpath(Path(__file__).parent, '../../data/ml_database/test')
+
+    train_dataset = ImageFolder(root=train_ml_database_path, transform=get_transform(train=True))
+    train_sampler = PKSampler(train_dataset.targets, p=18, k=16)
+    train_loader = DataLoader(dataset=train_dataset,
+                              batch_size=batch_size,
+                              sampler=train_sampler,
+                              num_workers=num_workers)
+
+    test_dataset = ImageFolder(root=test_ml_database_path, transform=get_transform(train=False))
+    val_loader = DataLoader(dataset=test_dataset,
+                            batch_size=batch_size,
+                            shuffle=False,
+                            num_workers=num_workers)
 
     model = EmbeddingNet(num_dims=128)
     model.cuda()
 
     criterion = TripletMarginLoss(margin=1.0, mining='batch_hard')
-    optimizer = optim.Adam(model.parameters(), lr=0.0001)
+    optimizer = optim.Adam(model.parameters(), lr=lr)
     scheduler = StepLR(optimizer, 8, gamma=0.1)
 
-    writer = SummaryWriter(os.path.join(log_path, datetime.datetime.now().strftime("%Y%m%d-%H%M%S")))
+    #writer = SummaryWriter(os.path.join(log_path, datetime.datetime.now().strftime("%Y%m%d-%H%M%S")))
 
-    for epoch in range(20):
-        print('Training...')
+    for epoch in range(epochs):
+        print(f'Epoch {epoch}/{epochs} ...')
+
         loss = train_epoch(model, optimizer, criterion, train_loader, epoch)
-        writer.add_scalar('train_loss', loss, epoch)
+        #writer.add_scalar('train_loss', loss, epoch)
         scheduler.step()
 
         print('Evaluating...')
         acc = evaluate(model, val_loader)
-        writer.add_scalar('val_acc', acc, epoch)
+        #writer.add_scalar('val_acc', acc, epoch)
 
-        if epoch % 5 == 4:
-            print('Plotting embeddings...')
-            figure = plot_embeddings(model, val_loader)
-            writer.add_image('embeddings', plot_to_image(figure), epoch)
+        #if epoch % 5 == 4:
+            #print('Plotting embeddings...')
+            #figure = plot_embeddings(model, val_loader)
+            #writer.add_image('embeddings', plot_to_image(figure), epoch)
 
         print('Saving...')
-        save(model, epoch, save_path, 'ckpt.pth')
+        os.makedirs(output_path, exist_ok=True)
+        torch.save(model, str(Path.joinpath(Path(output_path), f'epoch_{str(epoch)}_ckpt.pth')))
 
 
