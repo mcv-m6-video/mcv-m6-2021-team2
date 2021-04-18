@@ -5,6 +5,7 @@ from src.video import get_frames_from_video, generate_video, get_video_length
 from src.metrics.mot_metrics import IDF1Computation
 from src.tracking import filter_moving_tracks
 
+from tqdm import tqdm, trange
 import numpy as np
 import cv2
 import pickle
@@ -51,7 +52,7 @@ def task_1_find_best_baseline(distance_thresholds, min_tracking, cameras, algori
                 detections.extend(track.tracking)
             detections = group_by_frame(detections)
             
-            for frame_idx in range(0, get_video_length(str(video_path))):
+            for frame_idx in trange(0, get_video_length(str(video_path))):
                 frame_detections = []
                 for det in detections.get(frame_idx-1, []):
                     frame_detections.append(det)
@@ -66,28 +67,40 @@ def task_1_find_best_baseline(distance_thresholds, min_tracking, cameras, algori
 
 def compute_results():
     distance_thresholds = [
-        400, 500, 550, 600, 650, 700, 750, 800
+        400, 425, 450, 475, 500, 525, 550, 575, 600, 625, 650, 675, 700, 725, 750, 775, 800
     ]
     min_tracking = 5
     cameras = ['c010', 'c011', 'c012', 'c013', 'c014', 'c015']
-    algorithm = 'tc'
-    detector = 'ssd512'
-    task_1_find_best_baseline(distance_thresholds, min_tracking, cameras, algorithm, detector)
+    algorithm = ['deepsort', 'moana', 'tc']
+    detector = ['mask_rcnn', 'yolo3', 'ssd512']
+    for alg in algorithm:
+        for det in detector:
+            task_1_find_best_baseline(distance_thresholds, min_tracking, cameras, alg, det)
 
 
-def read_results(result_path, cameras=['c010', 'c011', 'c012', 'c013', 'c014', 'c015']):
-    with open(result_path, 'rb') as file:
-        results = pickle.load(file)
-    for key, value in results.items():
-        print(f'Threshold:{key}, Average: {np.mean(value)}')
-        print('Per camera')
-        for item, camera in zip(value, cameras):
-            print(f'camera: {camera}, value:{item}')
-        print('-'*10)
+def show_all_results():
+    algorithms = ['deepsort', 'moana', 'tc']
+    detectors = ['mask_rcnn', 'yolo3', 'ssd512']
+    read_results(algorithms, detectors)
+
+
+def read_results(algorithms, detectors, cameras=['c010', 'c011', 'c012', 'c013', 'c014', 'c015'], per_camera=False):
+    for algorithm in algorithms:
+        for detector in detectors:
+            result_path = str(RESULTS_DIR / f'idf1_seq3_{algorithm}_{detector}.pkl')
+            with open(result_path, 'rb') as file:
+                results = pickle.load(file)
+            print(f'Results for algorithm: {algorithm} and detector: {detector}')
+            for key, value in results.items():
+                print(f'Threshold:{key}, Average: {np.mean(value)}')
+                if per_camera:
+                    print('Per camera:')
+                    for item, camera in zip(value, cameras):
+                        print(f'camera: {camera}, value:{item}')
+                    print('-'*10)
+            print('#'*10)
 
 
 if __name__ == "__main__":
-    compute_results()
-    read_results(
-        str(RESULTS_DIR / 'idf1_seq3_tc_ssd512.pkl'),
-    )
+    #compute_results()
+    show_all_results()
