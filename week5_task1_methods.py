@@ -9,6 +9,7 @@ from src.detection import Detection
 from src.track import Track
 from src.sort import Sort
 
+from tqdm import tqdm, trange
 import numpy as np
 import cv2
 import pickle
@@ -55,7 +56,7 @@ def task_1_max_overlap(sequences, cameras):
             y_true = []
             y_pred = []
             all_tracks = []
-            for frame_idx in range(0, get_video_length(str(video_path))):
+            for frame_idx in trange(0, get_video_length(str(video_path))):
                 current_detections = dets.get(frame_idx-1, [])
                 all_tracks, tracks_on_frame = tracker.track_by_max_overlap(all_tracks, current_detections, optical_flow=None)
                 y_true.append(gt.get(frame_idx-1, []))
@@ -66,7 +67,7 @@ def task_1_max_overlap(sequences, cameras):
                 detections.extend(track.tracking)
             detections = group_by_frame(detections)
             
-            for frame_idx in range(0, get_video_length(str(video_path))):
+            for frame_idx in trange(0, get_video_length(str(video_path))):
                 frame_detections = []
                 for det in detections.get(frame_idx-1, []):
                     frame_detections.append(det)
@@ -94,14 +95,15 @@ def task_1_kalman_filter(sequences, cameras):
             # Detections
             det_reader = AICityChallengeAnnotationReader(str(data_dir / 'det' / f'det_{DETECTOR}.txt'))
             dets = det_reader.get_annotations(classes=['car'])
-            tracker = Sort(max_age=max_age, min_hits=min_hits, iou_threshold=iou_threshold)
+            tracker_sort = Sort(max_age=max_age, min_hits=min_hits, iou_threshold=iou_threshold)
+            tracker = MaxOverlapTracker()
             metrics = IDF1Computation()
             y_true = []
             y_pred = []
             all_tracks = []
-            for frame_idx in range(0, get_video_length(str(video_path))):
+            for frame_idx in trange(0, get_video_length(str(video_path))):
                 current_detections = dets.get(frame_idx-1, [])
-                new_detections = tracker.update(np.array([[*detection.bbox, detection.score] for detection in current_detections]))
+                new_detections = tracker_sort.update(np.array([[*detection.bbox, detection.score] for detection in current_detections]))
                 new_detections = [Detection(frame_idx-1, int(detection[-1]), 'car', *detection[:4]) for detection in new_detections]
                 all_tracks, tracks_on_frame = tracker.track_by_max_overlap(all_tracks, new_detections, optical_flow=None)
                 y_true.append(gt.get(frame_idx-1, []))
@@ -112,7 +114,7 @@ def task_1_kalman_filter(sequences, cameras):
                 detections.extend(track.tracking)
             detections = group_by_frame(detections)
             
-            for frame_idx in range(0, get_video_length(str(video_path))):
+            for frame_idx in trange(0, get_video_length(str(video_path))):
                 frame_detections = []
                 for det in detections.get(frame_idx-1, []):
                     frame_detections.append(det)
@@ -178,7 +180,7 @@ def task_1_max_overlap_with_flow(sequences, cameras):
                 detections.extend(track.tracking)
             detections = group_by_frame(detections)
             
-            for frame_idx in range(0, get_video_length(str(video_path))):
+            for frame_idx in trange(0, get_video_length(str(video_path))):
                 frame_detections = []
                 for det in detections.get(frame_idx-1, []):
                     frame_detections.append(det)
