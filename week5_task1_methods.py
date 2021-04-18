@@ -1,7 +1,7 @@
 from pathlib import Path
 from src.readers.ai_city_reader import AICityChallengeAnnotationReader
 from src.readers.ai_city_reader import resolve_tracks_from_detections, group_by_frame
-from src.video import get_frames_from_video, generate_video
+from src.video import get_frames_from_video, generate_video, get_video_length
 from src.metrics.mot_metrics import IDF1Computation
 from src.tracking import MaxOverlapTracker, filter_moving_tracks
 from src.test_bm import block_matching_flow
@@ -42,11 +42,6 @@ def task_1_max_overlap(sequences, cameras):
         for cam in cameras[seq]:
             video_path = DATA_DIR / seq / cam / 'vdo.avi'
             data_dir = DATA_DIR / seq / cam
-            cap = cv2.VideoCapture(str(video_path))
-            n_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-            video_percentage = 1
-            start = 0
-            end = int(n_frames * video_percentage)
 
             # Groundtruth
             gt_reader = AICityChallengeAnnotationReader(str(data_dir / 'gt' / 'gt.txt'))
@@ -60,7 +55,7 @@ def task_1_max_overlap(sequences, cameras):
             y_true = []
             y_pred = []
             all_tracks = []
-            for frame_idx, current_frame in get_frames_from_video(str(video_path), start_frame=start, end_frame=end):
+            for frame_idx in range(0, get_video_length(str(video_path))):
                 current_detections = dets.get(frame_idx-1, [])
                 all_tracks, tracks_on_frame = tracker.track_by_max_overlap(all_tracks, current_detections, optical_flow=None)
                 y_true.append(gt.get(frame_idx-1, []))
@@ -71,7 +66,7 @@ def task_1_max_overlap(sequences, cameras):
                 detections.extend(track.tracking)
             detections = group_by_frame(detections)
             
-            for frame_idx, current_frame in get_frames_from_video(str(video_path), start_frame=start, end_frame=end):
+            for frame_idx in range(0, get_video_length(str(video_path))):
                 frame_detections = []
                 for det in detections.get(frame_idx-1, []):
                     frame_detections.append(det)
@@ -91,11 +86,6 @@ def task_1_kalman_filter(sequences, cameras):
         for cam in cameras[seq]:
             video_path = DATA_DIR / seq / cam / 'vdo.avi'
             data_dir = DATA_DIR / seq / cam
-            cap = cv2.VideoCapture(str(video_path))
-            n_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-            video_percentage = 1
-            start = 0
-            end = int(n_frames * video_percentage)
 
             # Groundtruth
             gt_reader = AICityChallengeAnnotationReader(str(data_dir / 'gt' / 'gt.txt'))
@@ -109,7 +99,7 @@ def task_1_kalman_filter(sequences, cameras):
             y_true = []
             y_pred = []
             all_tracks = []
-            for frame_idx, current_frame in get_frames_from_video(str(video_path), start_frame=start, end_frame=end):
+            for frame_idx in range(0, get_video_length(str(video_path))):
                 current_detections = dets.get(frame_idx-1, [])
                 new_detections = tracker.update(np.array([[*detection.bbox, detection.score] for detection in current_detections]))
                 new_detections = [Detection(frame_idx-1, int(detection[-1]), 'car', *detection[:4]) for detection in new_detections]
@@ -122,7 +112,7 @@ def task_1_kalman_filter(sequences, cameras):
                 detections.extend(track.tracking)
             detections = group_by_frame(detections)
             
-            for frame_idx, current_frame in get_frames_from_video(str(video_path), start_frame=start, end_frame=end):
+            for frame_idx in range(0, get_video_length(str(video_path))):
                 frame_detections = []
                 for det in detections.get(frame_idx-1, []):
                     frame_detections.append(det)
@@ -188,7 +178,7 @@ def task_1_max_overlap_with_flow(sequences, cameras):
                 detections.extend(track.tracking)
             detections = group_by_frame(detections)
             
-            for frame_idx, current_frame in get_frames_from_video(str(video_path), start_frame=start, end_frame=end):
+            for frame_idx in range(0, get_video_length(str(video_path))):
                 frame_detections = []
                 for det in detections.get(frame_idx-1, []):
                     frame_detections.append(det)
@@ -222,8 +212,8 @@ if __name__ == "__main__":
                 'c035', 'c036', 'c037', 'c038', 'c039', 'c040'
         ]
     }
-    task_1_max_overlap(sequences, cameras)
+    task_1_kalman_filter(sequences, cameras)
     read_results(
-        str(RESULTS_DIR / 'max_overlap_mask_rcnn.pkl'),
+        str(RESULTS_DIR / 'kalman_mask_rcnn.pkl'),
         cameras
     )

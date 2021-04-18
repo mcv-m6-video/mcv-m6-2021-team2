@@ -1,7 +1,7 @@
 from pathlib import Path
 from src.readers.ai_city_reader import AICityChallengeAnnotationReader
 from src.readers.ai_city_reader import resolve_tracks_from_detections, group_by_frame
-from src.video import get_frames_from_video, generate_video
+from src.video import get_frames_from_video, generate_video, get_video_length
 from src.metrics.mot_metrics import IDF1Computation
 from src.tracking import filter_moving_tracks
 
@@ -51,7 +51,7 @@ def task_1_find_best_baseline(distance_thresholds, min_tracking, cameras, algori
                 detections.extend(track.tracking)
             detections = group_by_frame(detections)
             
-            for frame_idx, current_frame in get_frames_from_video(str(video_path), start_frame=start, end_frame=end):
+            for frame_idx in range(0, get_video_length(str(video_path))):
                 frame_detections = []
                 for det in detections.get(frame_idx-1, []):
                     frame_detections.append(det)
