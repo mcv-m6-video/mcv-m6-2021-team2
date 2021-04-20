@@ -88,7 +88,3 @@ def plot_opt_flow_hsv(flow, scale=4):
     hsv[..., 2] = np.minimum(mag * scale, 255)
     rgb = cv2.cvtColor(hsv, cv2.COLOR_HSV2RGB)
     return rgb
-
-def generate_video_from_frames(output_path: str, frames: List[np.array]) -> NoReturn:
-    frames = frames.astype(np.uint8)
-    imageio.mimsave(output_path, frames)

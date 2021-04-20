@@ -6,6 +6,8 @@
 
 *.pickle
 *.gif
+*.pth
+*.txt
 
 # Folders
 results/
