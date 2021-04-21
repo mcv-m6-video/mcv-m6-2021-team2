@@ -4,10 +4,36 @@ from pathlib import Path
 import cv2
 import numpy as np
 import shutil
+import matplotlib.pyplot as plt
+from mpl_toolkits.axes_grid1 import ImageGrid
 
 from src.video import get_frames_from_video
 from src.detection import Detection
 from src.readers.ai_city_reader import AICityChallengeAnnotationReader
+
+
+def plot_random_crops(img_size: int = 20,
+                      num_rows: int = 4,
+                      num_colums: int = 5,
+                      img_name: str = 'ml_sample.png') -> NoReturn:
+    ml_database_path = Path.joinpath(Path(__file__).parent, '../../data/ml_database/train')
+    if not ml_database_path.exists():
+        raise ValueError('The database for metric learning is not created. Create it first.')
+
+    fig = plt.figure(figsize=(img_size, img_size))
+    image_grid = ImageGrid(fig, 111, nrows_ncols=(num_rows, num_colums), axes_pad=0.1)
+
+    for ax, id_folder in zip(image_grid, list(ml_database_path.iterdir())[:20]):
+        crop_path = str(list(id_folder.iterdir())[0])
+        img = cv2.imread(crop_path)
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        ax.imshow(img)
+        ax.axis('off')
+
+    plt.axis('off')
+    plt.savefig(img_name)
+    plt.close()
+
 
 def crop_car_from_frame(detection: Detection,
                             frame: np.array,

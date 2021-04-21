@@ -116,7 +116,7 @@ def get_track_embeddings(tracks_by_cam, cap, encoder, batch_size=512, save_path=
 
 
 class MetricLearningEncoder(nn.Module):
-    def __init__(self, path='./checkpoints/epoch_19__ckpt.pth'):
+    def __init__(self, path='./checkpoints/epoch_9_ckpt.pth'):
         super().__init__()
         self.cuda = torch.cuda.is_available()
         self.model = torch.load(path, map_location=torch.device('cpu'))
@@ -180,13 +180,13 @@ class RandomEncoder:
         return np.random.random((len(batch), self.length))
 
 
-def get_encoder(method, num_bins):
+def get_encoder(method, num_bins, checkpoint):
     if method == 'histogram':
         return HistogramEncoder(num_bins)
     elif method == 'dummy':
         return RandomEncoder()
     elif method == 'metric':
-        return MetricLearningEncoder()
+        return MetricLearningEncoder(checkpoint)
 
 
 def get_distances(metric, embed_cam1, embed_cams2):
@@ -214,7 +214,7 @@ def get_distances(metric, embed_cam1, embed_cams2):
     return dist
 
 
-def get_correspondances(sequence: str, metric: str = 'euclidean', method: str = 'dummy', num_bins: int = 32,
+def get_correspondances(sequence: str, checkpoint:str, metric: str = 'euclidean', method: str = 'dummy', num_bins: int = 32,
                         thresh=20.):
     seq_path = str(Path(f'data/AICity_track_data/train/{sequence}'))
     cams = sorted(os.listdir(seq_path))
@@ -233,7 +233,7 @@ def get_correspondances(sequence: str, metric: str = 'euclidean', method: str = 
 
     # tracks_by_cam have a set of tracks (Detections for individual ids for each camera)
 
-    encoder = get_encoder(method, num_bins)
+    encoder = get_encoder(method, num_bins, checkpoint)
 
     embeddings_file = os.path.join('./results/week5/embeddings', f'{method}_{num_bins}_{sequence}.pkl')
     if os.path.exists(embeddings_file):
@@ -314,11 +314,11 @@ def write_results(results, path):
                 file.write(','.join(list(map(str, line))) + '\n')
 
 
-def task2(sequence: str, metric: str = 'euclidean', method: str = 'dummy', thresh=20., num_bins: int = 32):
+def task2(sequence: str, checkpoint:str, metric: str = 'euclidean', method: str = 'dummy', thresh=20., num_bins: int = 32):
     # obtain reid results
     seq_path = str(Path(f'data/AICity_track_data/train/{sequence}'))
     path_results = f'./results/week5/{sequence}_{metric}_{method}_{thresh}_{num_bins}'
-    results = get_correspondances(sequence=sequence, method=method, metric=metric, num_bins=num_bins, thresh=thresh)
+    results = get_correspondances(sequence=sequence, checkpoint=checkpoint, method=method, metric=metric, num_bins=num_bins, thresh=thresh)
     write_results(results, path=path_results)
 
     # compute metrics

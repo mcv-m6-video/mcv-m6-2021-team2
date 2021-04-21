@@ -1,5 +1,6 @@
 """
-Train from: https://github.com/pytorch/vision/tree/master/references/similarity
+The following code is taken from: https://github.com/pytorch/vision/blob/master/references/similarity/train.py
+All the credits to the original authors.
 """
 
 import os
@@ -8,6 +9,8 @@ import datetime
 
 from typing import NoReturn
 from pathlib import Path
+from matplotlib import pyplot as plt
+import cv2
 
 import torch
 from torch.utils.data import DataLoader
@@ -32,8 +35,6 @@ def train_epoch(model, optimizer, criterion, data_loader, epoch, print_freq=20):
         samples, targets = data[0].cuda(), data[1].cuda()
 
         embeddings = model(samples)
-        print(embeddings, targets)
-        exit(1)
         loss, frac_pos_triplets = criterion(embeddings, targets)
         loss.backward()
         optimizer.step()
@@ -45,7 +46,7 @@ def train_epoch(model, optimizer, criterion, data_loader, epoch, print_freq=20):
             i += 1
             avg_loss = running_loss / print_freq
             avg_trip = 100.0 * running_frac_pos_triplets / print_freq
-            print('[{:d}, {:d}] | loss: {:.4f} | % avg hard triplets: {:.2f}%'.format(epoch, i, avg_loss, avg_trip))
+            print(f'[{epoch}, {i}] | loss: {avg_loss} | % avg hard triplets: {avg_trip}%')
             running_loss = 0
             running_frac_pos_triplets = 0
 
@@ -99,7 +100,6 @@ def evaluate(model, loader):
 
 def get_transform(train):
     transforms = []
-    # transforms.append(T.Resize((128, 128)))
     if train:
         transforms.append(T.ColorJitter(0.5, 0.5, 0.5, 0)),
         transforms.append(T.RandomHorizontalFlip())
@@ -112,52 +112,52 @@ def get_transform(train):
 def train(output_path: str,
           epochs: int,
           lr: float,
-          batch_size: int,
+          p: int,
+          k: int,
+          margin: float,
           num_workers: int) -> NoReturn:
 
     train_ml_database_path = Path.joinpath(Path(__file__).parent, '../../data/ml_database/train')
     test_ml_database_path = Path.joinpath(Path(__file__).parent, '../../data/ml_database/test')
 
     train_dataset = ImageFolder(root=train_ml_database_path, transform=get_transform(train=True))
-    train_sampler = PKSampler(train_dataset.targets, p=18, k=16)
+    train_sampler = PKSampler(train_dataset.targets, p=p, k=k)
     train_loader = DataLoader(dataset=train_dataset,
-                              batch_size=batch_size,
+                              batch_size=p*k,
                               sampler=train_sampler,
                               num_workers=num_workers)
 
     test_dataset = ImageFolder(root=test_ml_database_path, transform=get_transform(train=False))
     val_loader = DataLoader(dataset=test_dataset,
-                            batch_size=batch_size,
+                            batch_size=p*k,
                             shuffle=False,
                             num_workers=num_workers)
 
     model = EmbeddingNet(num_dims=128)
     model.cuda()
 
-    criterion = TripletMarginLoss(margin=1.0, mining='batch_hard')
+    criterion = TripletMarginLoss(margin=margin, mining='batch_hard')
     optimizer = optim.Adam(model.parameters(), lr=lr)
     scheduler = StepLR(optimizer, 8, gamma=0.1)
 
     #writer = SummaryWriter(os.path.join(log_path, datetime.datetime.now().strftime("%Y%m%d-%H%M%S")))
 
-    for epoch in range(epochs):
-        print(f'Epoch {epoch}/{epochs} ...')
+    with open(f'loss_acc_{p}_{k}_{margin}_{epochs}.txt', 'w') as f:
+        for epoch in range(epochs):
+            print(f'Epoch {epoch}/{epochs} ...')
 
-        loss = train_epoch(model, optimizer, criterion, train_loader, epoch)
-        #writer.add_scalar('train_loss', loss, epoch)
-        scheduler.step()
+            loss = train_epoch(model, optimizer, criterion, train_loader, epoch)
 
-        print('Evaluating...')
-        acc = evaluate(model, val_loader)
-        #writer.add_scalar('val_acc', acc, epoch)
+            scheduler.step()
 
-        #if epoch % 5 == 4:
-            #print('Plotting embeddings...')
-            #figure = plot_embeddings(model, val_loader)
-            #writer.add_image('embeddings', plot_to_image(figure), epoch)
+            acc = evaluate(model, val_loader)
 
-        print('Saving...')
-        os.makedirs(output_path, exist_ok=True)
-        torch.save(model, str(Path.joinpath(Path(output_path), f'epoch_{str(epoch)}_ckpt.pth')))
+            f.write(f"{epoch},{loss},{acc}\n")
+
+            if epoch % 1 == 0:
+                figure = plot_embeddings(model, val_loader, f'embeddings_{p}_{k}_{margin}_{epochs}.png')
+
+            os.makedirs(output_path, exist_ok=True)
+            torch.save(model, str(Path.joinpath(Path(output_path), f'epoch_{str(epoch)}.pth')))
 
 

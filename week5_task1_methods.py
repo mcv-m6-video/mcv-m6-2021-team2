@@ -73,7 +73,7 @@ def task_1_baseline(sequences, cameras, detector):
             for track in moving_tracks:
                 detections.extend(track.tracking)
             detections = group_by_frame(detections)
-            
+
             for frame_idx in trange(0, get_video_length(str(video_path))):
                 frame_detections = []
                 for det in detections.get(frame_idx-1, []):
@@ -207,26 +207,28 @@ def task_1_max_overlap_with_flow(sequences, cameras, detector):
             y_pred = []
             all_tracks = []
             previous_frame = None
-            for frame_idx, current_frame in get_frames_from_video(str(video_path), start_frame=start, end_frame=end):
-                if previous_frame is None:
-                    optical_flow = None
-                else:
-                    if FLOW_METHOD == 'farneback':
-                        img_0 = cv2.cvtColor(previous_frame, cv2.COLOR_BGR2GRAY)
-                        img_1 = cv2.cvtColor(previous_frame, cv2.COLOR_BGR2GRAY)
-                        optical_flow = cv2.calcOpticalFlowFarneback(img_0, img_1, None, 0.5, 3, 15, 3, 5, 1.2, 0)
-                    elif FLOW_METHOD == 'block_matching':
-                        optical_flow = block_matching_flow(
-                            img_prev=previous_frame, img_next=current_frame, motion_type=forward,
-                            block_size=block_size, search_area=search_area,
-                            algorithm=algorithm, metric=distance
-                        )
+            for frame_idx, file_path in enumerate(Path(f'./aic19_frames/{seq}/{cam}').iterdir()):
+                if file_path.is_file():
+                    current_frame = cv2.imread(str(file_path))
+                    if previous_frame is None:
+                        optical_flow = None
                     else:
-                        raise ValueError(f'This {FLOW_METHOD} is not available')
-                previous_frame = current_frame.copy()
-                current_detections = dets.get(frame_idx-1, [])
-                all_tracks, tracks_on_frame = tracker.track_by_max_overlap(all_tracks, current_detections, optical_flow=optical_flow)
-                y_true.append(gt.get(frame_idx-1, []))
+                        if FLOW_METHOD == 'farneback':
+                            img_0 = cv2.cvtColor(previous_frame, cv2.COLOR_BGR2GRAY)
+                            img_1 = cv2.cvtColor(previous_frame, cv2.COLOR_BGR2GRAY)
+                            optical_flow = cv2.calcOpticalFlowFarneback(img_0, img_1, None, 0.5, 3, 15, 3, 5, 1.2, 0)
+                        elif FLOW_METHOD == 'block_matching':
+                            optical_flow = block_matching_flow(
+                                img_prev=previous_frame, img_next=current_frame, motion_type=forward,
+                                block_size=block_size, search_area=search_area,
+                                algorithm=algorithm, metric=distance
+                            )
+                        else:
+                            raise ValueError(f'This {FLOW_METHOD} is not available')
+                    previous_frame = current_frame.copy()
+                    current_detections = dets.get(frame_idx-1, [])
+                    all_tracks, tracks_on_frame = tracker.track_by_max_overlap(all_tracks, current_detections, optical_flow=optical_flow)
+                    y_true.append(gt.get(frame_idx-1, []))
 
             moving_tracks = filter_moving_tracks(all_tracks, DIST_THRESHOLD, MIN_TRACKING)
             detections = []
@@ -273,7 +275,14 @@ if __name__ == "__main__":
                 'c035', 'c036', 'c037', 'c038', 'c039', 'c040'
         ]
     }
-    detectors = ['ssd512']
-    #for detector in detectors:
-    #    task_1_baseline(sequences, cameras, detector)
-    show_all_results(detectors, 'optical_flow', cameras)
+
+    for detector in ['yolo3', 'ssd512', 'mask_rcnn']:
+        #task_1_max_overlap(sequences, cameras, detector)
+        task_1_max_overlap_with_flow(sequences, cameras, detector)
+    """
+    task_1_kalman_filter(sequences, cameras)
+    read_results(
+        str(RESULTS_DIR / 'kalman_mask_rcnn.pkl'),
+        cameras
+    )
+    """

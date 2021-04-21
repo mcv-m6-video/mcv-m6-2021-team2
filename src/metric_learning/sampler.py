@@ -1,5 +1,6 @@
 """
-Sampler used from: https://github.com/pytorch/vision/tree/master/references/similarity
+The following code is taken from: https://github.com/pytorch/vision/blob/master/references/similarity/sampler.py
+All the credits to the original authors.
 """
 
 import torch

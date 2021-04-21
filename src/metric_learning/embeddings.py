@@ -40,7 +40,7 @@ def plot_to_image(figure):
     return image
 
 
-def plot_embeddings(model, loader, max_classes=None):
+def plot_embeddings(model, loader, output_path, max_classes=None):
     embeds, labels = extract_embeddings(model, loader)
 
     embeds = TSNE(n_components=2, verbose=1).fit_transform(embeds)
@@ -53,8 +53,10 @@ def plot_embeddings(model, loader, max_classes=None):
     for cls in selected_classes:
         idx = loader.dataset.class_to_idx[cls]
         inds = labels == idx
+        #cmap = plt.cm.get_cmap("tab20c")
+        #colors = cmap(np.arange(len(embeds[inds, 1])))
         plt.scatter(embeds[inds, 0], embeds[inds, 1], alpha=0.5)
 
     plt.legend(loader.dataset.classes)
-
-    return figure
+    plt.savefig(output_path)
+    plt.close()

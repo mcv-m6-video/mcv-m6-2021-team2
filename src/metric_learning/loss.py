@@ -1,9 +1,10 @@
-"""
-Loss file used from: https://github.com/pytorch/vision/tree/master/references/similarity
-"""
-
 import torch
 import torch.nn as nn
+
+"""
+The following code is taken from: https://github.com/pytorch/vision/blob/master/references/similarity/loss.py
+All the credits to the original authors.
+"""
 
 
 class TripletMarginLoss(nn.Module):
