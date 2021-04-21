@@ -1,5 +1,5 @@
 """
-https://github.com/pytorch/vision/blob/master/references/similarity/loss.py
+Loss file used from: https://github.com/pytorch/vision/tree/master/references/similarity
 """
 
 import torch

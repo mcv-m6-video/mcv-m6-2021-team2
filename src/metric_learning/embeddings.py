@@ -1,3 +1,7 @@
+"""
+Embeddings from: https://github.com/pytorch/vision/tree/master/references/similarity
+"""
+
 import io
 
 import numpy as np

@@ -1,3 +1,7 @@
+"""
+Train from: https://github.com/pytorch/vision/tree/master/references/similarity
+"""
+
 import os
 import argparse
 import datetime
