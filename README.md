@@ -137,7 +137,13 @@ Experiments and more detailed information can be found [here](https://docs.googl
 
 ## __Week 5__
 ----
+During this week we have tackled the problems of Multi Target Single Camera (MTSC) and Multi Target Multi Ccamera (MTMC)
 
-Slides link
+The intention first is to recap and see which of our methods during all the weeks performs best against a baseline with the objective of tracking cars
+
+Then the intention is to find an algorithm or method to be able to track cars in multiple cameras.
+Our method is based on graph models to be able to track the same cars thanks to previously computed embeddings, in order to not depend on spatially neither temporal problems between the appearances from cars in the different cameras.
+
+The **SLIDES** can be found [here](https://docs.google.com/presentation/d/1SKt3O-y2PFHsqUoh_Kva37HYnKhV8MT_PtB4mstIb-w/edit#slide=id.gd33224cd1f_0_60)
 
 Report link

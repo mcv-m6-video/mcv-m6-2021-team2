@@ -356,16 +356,31 @@ def postprocess(sequence: str, metric: str = 'euclidean', method: str = 'dummy',
                              int(random.random() * 256))
                     colors[det.id] = color
                 cv2.rectangle(current_frame, (int(det.xtl), int(det.ytl)), (int(det.xbr), int(det.ybr)), colors[det.id],6)
+                cv2.putText(current_frame, str(det.id), (int(det.xtl), int(det.ytl)), cv2.FONT_HERSHEY_COMPLEX, 1, (0, 0, 0), 2)
             current_frame = cv2.cvtColor(current_frame, cv2.COLOR_BGR2RGB)
             writer.append_data(cv2.resize(current_frame, (600, 350)))
 
 
 if __name__ == '__main__':
     compute_video = False
-    summary_results = f'./results/week5/summary.txt'
+    summary_results = f'./results/week5/summary_3.txt'
     idfs = []
 
     param_space = [
+        {
+            'sequence': 'S03',
+            'method': 'dummy',
+            'metric': 'euclidean',
+            'thresh': 20,
+            'num_bins': -1,
+        },
+        {
+            'sequence': 'S03',
+            'method': 'histogram',
+            'metric': 'euclidean',
+            'thresh': 0.33,
+            'num_bins': 16,
+        },
         {
             'sequence': 'S03',
             'method': 'histogram',
@@ -385,6 +400,27 @@ if __name__ == '__main__':
             'method': 'histogram',
             'metric': 'histogram_correl',
             'thresh': 0.33,  # need to supervise first
+            'num_bins': 16,
+        },
+        {
+            'sequence': 'S03',
+            'method': 'histogram',
+            'metric': 'histogram_correl',
+            'thresh': 0.33,  # need to supervise first
+            'num_bins': 32,
+        },
+        {
+            'sequence': 'S03',
+            'method': 'histogram',
+            'metric': 'histogram_correl',
+            'thresh': 0.27,  # need to supervise first
+            'num_bins': 32,
+        },
+        {
+            'sequence': 'S03',
+            'method': 'histogram',
+            'metric': 'histogram_correl',
+            'thresh': 0.42,  # need to supervise first
             'num_bins': 32,
         },
         {
@@ -399,7 +435,35 @@ if __name__ == '__main__':
             'method': 'histogram',
             'metric': 'histogram_hellinger',
             'thresh': 0.33,  # need to supervise first
+            'num_bins': 16,
+        },
+        {
+            'sequence': 'S03',
+            'method': 'histogram',
+            'metric': 'histogram_hellinger',
+            'thresh': 0.33,  # need to supervise first
             'num_bins': 32,
+        },
+        {
+            'sequence': 'S03',
+            'method': 'histogram',
+            'metric': 'histogram_hellinger',
+            'thresh': 0.33,  # need to supervise first
+            'num_bins': 64,
+        },
+        {
+            'sequence': 'S03',
+            'method': 'histogram',
+            'metric': 'histogram_hellinger',
+            'thresh': 0.20,  # need to supervise first
+            'num_bins': 64,
+        },
+        {
+            'sequence': 'S03',
+            'method': 'histogram',
+            'metric': 'histogram_hellinger',
+            'thresh': 0.45,  # need to supervise first
+            'num_bins': 64,
         },
         {
             'sequence': 'S03',
@@ -415,6 +479,20 @@ if __name__ == '__main__':
             'thresh': 0.2,
             'num_bins': -1,
         },
+        {
+            'sequence': 'S03',
+            'method': 'metric',
+            'metric': 'cosine',
+            'thresh': 0.3,
+            'num_bins': -1,
+        },
+        {
+            'sequence': 'S03',
+            'method': 'metric',
+            'metric': 'cosine',
+            'thresh': 0.1,
+            'num_bins': -1,
+        },
     ]
     for params in param_space:
         _, summary = task2(**params)
@@ -422,7 +500,11 @@ if __name__ == '__main__':
         idfs.append(summary["idf1"]["metrics"] * 100)
         with open(summary_results, 'a') as f:
             text = ', '.join(f'{key}: {value}' for key, value in params.items())
-            text += f'=> {summary["idf1"]["metrics"] * 100}\n'
+            text += f'=> idf1: {summary["idf1"]["metrics"] * 100}\t'
+            text += f'=> precision: {summary["precision"]["metrics"] * 100}\t'
+            text += f'=> recall: {summary["recall"]["metrics"] * 100}\t'
+            text += f'=> idp: {summary["idp"]["metrics"] * 100}\t'
+            text += f'=> idr: {summary["idr"]["metrics"] * 100}\n'
             f.write(text)
         if compute_video:
             postprocess(**params)

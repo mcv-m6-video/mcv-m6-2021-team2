@@ -6,6 +6,7 @@ from src.metrics.mot_metrics import IDF1Computation
 from src.tracking import filter_moving_tracks
 
 from tqdm import tqdm, trange
+import matplotlib.pyplot as plt
 import numpy as np
 import cv2
 import pickle
@@ -86,19 +87,31 @@ def show_all_results():
 
 def read_results(algorithms, detectors, cameras=['c010', 'c011', 'c012', 'c013', 'c014', 'c015'], per_camera=False):
     for algorithm in algorithms:
+        plt.figure(figsize=(8,5))
         for detector in detectors:
             result_path = str(RESULTS_DIR / f'idf1_seq3_{algorithm}_{detector}.pkl')
             with open(result_path, 'rb') as file:
                 results = pickle.load(file)
             print(f'Results for algorithm: {algorithm} and detector: {detector}')
+            thresholds = list(results.keys())
+            averages = []
             for key, value in results.items():
                 print(f'Threshold:{key}, Average: {np.mean(value)}')
+                averages.append(np.mean(value))
                 if per_camera:
                     print('Per camera:')
                     for item, camera in zip(value, cameras):
                         print(f'camera: {camera}, value:{item}')
                     print('-'*10)
+            plt.plot(thresholds, averages)
             print('#'*10)
+        title = f'Results for {algorithm}'
+        plt.title(title)
+        plt.xlabel('Distance between Centroids')
+        plt.ylabel('IDF1')
+        plt.legend(detectors)
+        plt.savefig(Path(f'{RESULTS_DIR}/{title.lower()}.png'))
+        plt.show()
 
 
 if __name__ == "__main__":

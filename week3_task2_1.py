@@ -13,7 +13,7 @@ from src.readers.ai_city_reader import AICityChallengeAnnotationReader
 RESULTS_DIR = Path('Results/week3')
 VIDEO_PATH = Path('data/AICity_data/train/S03/c010/vdo.avi')
 
-def task_2_1(prediction_path, efficient=True):
+def task_2_1(prediction_path):
     # Read groundtruth xml detections
     gt_reader = AICityChallengeAnnotationReader(Path('data/ai_challenge_s03_c010-full_annotation.xml'))
     detection_reader = AICityChallengeAnnotationReader(prediction_path)
@@ -22,18 +22,17 @@ def task_2_1(prediction_path, efficient=True):
     pred_detections = detection_reader.get_annotations(classes=['car'])
 
     # Initialize Variables
-    tracker = MaxOverlapTrackerEfficient() if efficient else MaxOverlapTracker()
+    tracker = MaxOverlapTracker()
     tracks = []
     y_gt = []
     y_pred = []
     metrics = IDF1Computation()
-    eff = '_eff' if efficient else ''
 
     # Start Video
-    writer = imageio.get_writer(str(RESULTS_DIR / f'task_2_1_{prediction_path.stem}-short-{eff}.gif'), fps=10)
+    writer = imageio.get_writer(str(RESULTS_DIR / f'task_2_1_{prediction_path.stem}.gif'), fps=10)
     pred_idx = 0
     # For each frame, compute the detected tracks by maximum overlaping
-    for frame_idx, frame in get_frames_from_video(str(VIDEO_PATH), start_frame=0):
+    for frame_idx, frame in get_frames_from_video(str(VIDEO_PATH), start_frame=500, end_frame=800):
         # Get detections from current frame
         if frame is not None:
             current_gt_det = gt_detections[frame_idx-1]
@@ -69,4 +68,4 @@ def task_2_1(prediction_path, efficient=True):
 
 if __name__ == '__main__':
     RESULTS_DIR.mkdir(exist_ok=True, parents=True)
-    task_2_1(Path('data/AICity_data/train/S03/c010/det/det_mask_rcnn.txt'), efficient=True)
+    task_2_1(Path('data/AICity_track_data/train/S03/c010/det/det_mask_rcnn.txt'))

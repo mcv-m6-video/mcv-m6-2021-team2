@@ -21,7 +21,7 @@ RESULTS_DIR = Path('results/week5/')
 DETECTOR = 'mask_rcnn'
 MIN_TRACKING = 5
 DIST_THRESHOLD = 725
-FLOW_METHOD = 'block_matching'
+FLOW_METHOD = 'farneback'
 
 # Block matching parameters
 forward = True
@@ -34,6 +34,57 @@ distance = 'mse'
 max_age = 1
 min_hits = 3
 iou_threshold = 0.3
+
+
+def task_1_baseline(sequences, cameras, detector):
+    idf1s = {}
+    for seq in sequences:
+        idf1s[seq] = []
+        for cam in cameras[seq]:
+            video_path = DATA_DIR / seq / cam / 'vdo.avi'
+            data_dir = DATA_DIR / seq / cam
+            cap = cv2.VideoCapture(str(video_path))
+            n_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+            video_percentage = 1
+            start = 0
+            end = int(n_frames * video_percentage)
+
+            # Groundtruth
+            gt_reader = AICityChallengeAnnotationReader(str(data_dir / 'gt' / 'gt.txt'))
+            gt = gt_reader.get_annotations(classes=['car'])
+
+            # Detections
+            det_reader = AICityChallengeAnnotationReader(str(data_dir / 'mtsc' / f'mtsc_tc_{detector}.txt'))
+            dets = det_reader.get_annotations(classes=['car'])
+            dets = [dets.get(frame, []) for frame in range(start, end)]
+            ordered_dets = []
+            for detections in dets:
+                ordered_dets.extend(detections)
+            all_tracks = list(resolve_tracks_from_detections(ordered_dets).values())
+
+            # Initialize Variables
+            y_true = [gt.get(frame, []) for frame in range(start, end)]
+
+            metrics = IDF1Computation()
+            y_pred = []
+
+            moving_tracks = filter_moving_tracks(all_tracks, DIST_THRESHOLD, MIN_TRACKING)
+            detections = []
+            for track in moving_tracks:
+                detections.extend(track.tracking)
+            detections = group_by_frame(detections)
+            
+            for frame_idx in trange(0, get_video_length(str(video_path))):
+                frame_detections = []
+                for det in detections.get(frame_idx-1, []):
+                    frame_detections.append(det)
+                y_pred.append(frame_detections)
+                metrics.add_frame_detections(y_true[frame_idx-1], y_pred[-1])
+            summary = metrics.get_computation()
+            idf1s[seq].append(summary['idf1']['metrics']*100)
+            print(f'sequence: {seq}, camera: {cam}, dist_th: {DIST_THRESHOLD}, summary:\n{summary}')
+    with open(str(RESULTS_DIR / f'baseline_{detector}.pkl'), 'wb') as file:
+        pickle.dump(idf1s, file)
 
 
 def task_1_max_overlap(sequences, cameras, detector):
@@ -80,7 +131,7 @@ def task_1_max_overlap(sequences, cameras, detector):
         pickle.dump(idf1s, file)
 
 
-def task_1_kalman_filter(sequences, cameras):
+def task_1_kalman_filter(sequences, cameras, detector):
     idf1s = {}
     for seq in sequences:
         idf1s[seq] = []
@@ -93,7 +144,7 @@ def task_1_kalman_filter(sequences, cameras):
             gt = gt_reader.get_annotations(classes=['car'])
 
             # Detections
-            det_reader = AICityChallengeAnnotationReader(str(data_dir / 'det' / f'det_{DETECTOR}.txt'))
+            det_reader = AICityChallengeAnnotationReader(str(data_dir / 'det' / f'det_{detector}.txt'))
             dets = det_reader.get_annotations(classes=['car'])
             tracker_sort = Sort(max_age=max_age, min_hits=min_hits, iou_threshold=iou_threshold)
             tracker = MaxOverlapTracker()
@@ -103,8 +154,11 @@ def task_1_kalman_filter(sequences, cameras):
             all_tracks = []
             for frame_idx in trange(0, get_video_length(str(video_path))):
                 current_detections = dets.get(frame_idx-1, [])
-                new_detections = tracker_sort.update(np.array([[*detection.bbox, detection.score] for detection in current_detections]))
-                new_detections = [Detection(frame_idx-1, int(detection[-1]), 'car', *detection[:4]) for detection in new_detections]
+                try:
+                    new_detections = tracker_sort.update(np.array([[*detection.bbox, detection.score] for detection in current_detections]))
+                    new_detections = [Detection(frame_idx-1, int(detection[-1]), 'car', *detection[:4]) for detection in new_detections]
+                except Exception as e:
+                    new_detections = []
                 all_tracks, tracks_on_frame = tracker.track_by_max_overlap(all_tracks, new_detections, optical_flow=None)
                 y_true.append(gt.get(frame_idx-1, []))
 
@@ -123,7 +177,7 @@ def task_1_kalman_filter(sequences, cameras):
             summary = metrics.get_computation()
             idf1s[seq].append(summary['idf1']['metrics']*100)
             print(f'sequence: {seq}, camera: {cam}, dist_th: {DIST_THRESHOLD}, summary:\n{summary}')
-    with open(str(RESULTS_DIR / f'kalman_{DETECTOR}.pkl'), 'wb') as file:
+    with open(str(RESULTS_DIR / f'kalman_{detector}.pkl'), 'wb') as file:
         pickle.dump(idf1s, file)
 
 
@@ -193,11 +247,16 @@ def task_1_max_overlap_with_flow(sequences, cameras, detector):
         pickle.dump(idf1s, file)
 
 
-def read_results(result_path, cameras):
+def show_all_results(detectors, method, cameras):
+    for detector in detectors:
+        read_results(str(RESULTS_DIR/f'{method}_{detector}.pkl'), detector, cameras)
+
+
+def read_results(result_path, detector, cameras):
     with open(result_path, 'rb') as file:
         results = pickle.load(file)
     for key, value in results.items():
-        print(f'Threshold:{key}, Average: {np.mean(value)}')
+        print(f'Threshold:{key}, Detector: {detector} Average: {np.mean(value)}')
         print('Per camera')
         for item, camera in zip(value, cameras[key]):
             print(f'camera: {camera}, value:{item}')
@@ -214,14 +273,7 @@ if __name__ == "__main__":
                 'c035', 'c036', 'c037', 'c038', 'c039', 'c040'
         ]
     }
-
-    for detector in ['yolo3', 'ssd512', 'mask_rcnn']:
-        task_1_max_overlap(sequences, cameras, detector)
-        task_1_max_overlap_with_flow(sequences, cameras, detector)
-    """
-    task_1_kalman_filter(sequences, cameras)
-    read_results(
-        str(RESULTS_DIR / 'kalman_mask_rcnn.pkl'),
-        cameras
-    )
-    """
+    detectors = ['ssd512']
+    #for detector in detectors:
+    #    task_1_baseline(sequences, cameras, detector)
+    show_all_results(detectors, 'optical_flow', cameras)
